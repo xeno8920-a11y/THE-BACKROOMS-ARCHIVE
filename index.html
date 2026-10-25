@@ -192,7 +192,7 @@
     const createTerminalPlaceholder = window.createTerminalPlaceholder;
 
     // Smart image component that tries .jpg -> .png -> .webp -> .jpeg -> .JPG -> .PNG before fallback
-    function ArchiveImage({ src, alt, className, fallbackTitle, fallbackSubtitle, accentColor = "#f5be0b" }) {
+    function ArchiveImage({ src, alt, className, style, fallbackTitle, fallbackSubtitle, accentColor = "#f5be0b" }) {
       const [currentSrc, setCurrentSrc] = useState(src);
       const [extStep, setExtStep] = useState(0);
 
@@ -218,6 +218,7 @@
           src={currentSrc}
           alt={alt}
           className={className}
+          style={style}
           onError={handleError}
         />
       );
@@ -239,6 +240,7 @@
         threatLevel: "EXTREME",
         habitat: "Level 0",
         image: "images/entity-bacteria.jpg",
+        imagePosition: "center 18%",
         description: "A towering, spindly humanoid organism composed of tangled, tar-black tendon-like filaments. It emits a distorted, metallic howling sound resembling mangled radio transmissions and rapidly stalks wanderers who remain stationary in Level 0 for too long. Direct physical contact results in immediate assimilation or fatal cellular breakdown."
       },
       {
@@ -248,6 +250,7 @@
         threatLevel: "HIGH",
         habitat: "Level 1, Level 2, Level !, Dark Zones",
         image: "images/entity-smiler.jpg",
+        imagePosition: "center center",
         description: "Smilers are recognizable almost exclusively by their reflective, glowing eyes and unnaturally wide, gleaming teeth suspended in pitch-black darkness. It is unknown whether they possess a physical body beyond the darkness that shrouds them. They are attracted to light sources—if spotted, turn off flashlights immediately and back away slowly while maintaining eye contact."
       },
       {
@@ -257,6 +260,7 @@
         threatLevel: "MODERATE-HIGH",
         habitat: "Level 1, Level 2, Level 4, Level 9",
         image: "images/entity-hound.jpg",
+        imagePosition: "center 20%",
         description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts."
       },
       {
@@ -266,6 +270,7 @@
         threatLevel: "SEVERE",
         habitat: "Level 1, Level 2, Level 9",
         image: "images/entity-skin-stealer.jpg",
+        imagePosition: "center 15%",
         description: "Large, pale, humanoid creatures with sunken eyes and microscopic suction bumps covering their flesh. When hunting, they flay deceased or captured wanderers and wear their skin like a decaying suit to lure other humans. You can identify a disguised Skin-Stealer by its translucent, yellowish blood and inability to speak coherent sentences."
       },
       {
@@ -275,6 +280,7 @@
         threatLevel: "HIGH",
         habitat: "Level 2, Tight Maintenance Tunnels",
         image: "images/entity-clump.jpg",
+        imagePosition: "center 25%",
         description: "A writhing spherical mass of human limbs—arms, legs, and hands of varying sizes—fused together around a central jaw. Clumps compress themselves into ceiling vents or narrow pipe junctions. When prey passes within a three-meter radius, a long muscular central arm shoots out at blinding speed to drag the victim into the mass."
       },
       {
@@ -284,6 +290,7 @@
         threatLevel: "LETHAL",
         habitat: "Level Fun, Level !, Corrupted Sub-Layers",
         image: "images/entity-partygoer.jpg",
+        imagePosition: "center 8%",
         description: "Tall, bipedal entities with leathery ochre skin, no visible facial features except a crudely carved, bleeding smile, and latch-hook appendices instead of hands. Exceptionally intelligent, they are capable of hacking M.E.G. terminal entries, appending '=)' to documentation to lure unsuspecting explorers into traps."
       },
       {
@@ -293,6 +300,7 @@
         threatLevel: "BIOHAZARD",
         habitat: "Level 37 (Stagnant Dark Pools)",
         image: "images/entity-hydrolitis.jpg",
+        imagePosition: "center center",
         description: "An invisible bacterium thriving in the unchlorinated, shadowed depths of Level 37's lower subterranean pools. Upon inhalation of warm mist or contact with open wounds, it induces severe delirium, hypothermia, and pulmonary edema within hours."
       }
     ];
@@ -450,7 +458,15 @@
       const [searchQuery, setSearchQuery] = useState("");
       const [activeLevel, setActiveLevel] = useState(null);
       const [activeEntity, setActiveEntity] = useState(null);
+      const [entityFitMode, setEntityFitMode] = useState("cover");
       const [clock, setClock] = useState("00:00:00 UTC");
+
+      // Reset fit mode whenever a new entity is opened
+      useEffect(() => {
+        if (activeEntity) {
+          setEntityFitMode("cover");
+        }
+      }, [activeEntity]);
 
       // Terminal live clock
       useEffect(() => {
@@ -691,7 +707,8 @@
                               fallbackTitle={level.code}
                               fallbackSubtitle={level.name}
                               accentColor="#f5be0b"
-                              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
+                              style={{ objectPosition: level.imagePosition || "center center" }}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-[#0c0d10] via-transparent to-black/40" />
 
@@ -778,7 +795,8 @@
                         fallbackTitle={ent.name}
                         fallbackSubtitle={ent.threatLevel}
                         accentColor="#ef4444"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        style={{ objectPosition: ent.imagePosition || "center top" }}
+                        className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
                       />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -845,6 +863,7 @@
                       fallbackTitle={activeLevel.code}
                       fallbackSubtitle={activeLevel.name}
                       accentColor="#f5be0b"
+                      style={{ objectPosition: activeLevel.imagePosition || "center center" }}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c0f] via-transparent to-black/30" />
@@ -979,16 +998,31 @@
                 {/* Entity Content */}
                 <div className="p-4 sm:p-6 space-y-5">
                   {/* Monster Image */}
-                  <div className="relative h-52 sm:h-60 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
+                  <div className="relative h-64 sm:h-80 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
                     <ArchiveImage
                       src={activeEntity.image}
                       alt={activeEntity.name}
                       fallbackTitle={activeEntity.name}
                       fallbackSubtitle={activeEntity.classification}
                       accentColor="#ef4444"
-                      className="w-full h-full object-cover"
+                      style={{
+                        objectPosition:
+                          entityFitMode === "cover"
+                            ? activeEntity.imagePosition || "center top"
+                            : "center center"
+                      }}
+                      className={`w-full h-full transition-all duration-300 ${
+                        entityFitMode === "contain" ? "object-contain bg-black/80" : "object-cover object-top"
+                      }`}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0e0a0b] via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0e0a0b] via-transparent to-transparent pointer-events-none" />
+                    <button
+                      type="button"
+                      onClick={() => setEntityFitMode((prev) => (prev === "cover" ? "contain" : "cover"))}
+                      className="absolute top-3 left-3 px-2.5 py-1 bg-black/85 hover:bg-amber-400 hover:text-black border border-zinc-700 text-amber-400 text-[10px] font-bold tracking-widest uppercase transition-colors"
+                    >
+                      [{entityFitMode === "cover" ? "FULL FRAME" : "CROP VIEW"}]
+                    </button>
                     <span className="absolute top-3 right-3 px-2.5 py-1 bg-red-950/90 border border-red-500 text-red-300 text-[11px] font-bold tracking-widest uppercase">
                       THREAT: {activeEntity.threatLevel}
                     </span>
