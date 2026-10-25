@@ -169,9 +169,11 @@
     const { useState, useEffect, useMemo } = React;
 
     // ============================================================================
-    // TERMINAL FALLBACK GENERATOR & SMART EXTENSION LOADER
+    // TERMINAL FALLBACK GENERATOR & SMART IMAGE COMPONENT
     // ============================================================================
-    function createTerminalPlaceholder(title, subtitle, accentColor = "#f5be0b", bgColor = "#14120a") {
+    window.createTerminalPlaceholder = function(title = "ARCHIVE // FILE", subtitle = "SIGNAL LOST", accentColor = "#f5be0b", bgColor = "#14120a") {
+      const safeTitle = String(title).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const safeSub = String(subtitle).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
         <rect width="800" height="500" fill="${bgColor}"/>
         <g stroke="${accentColor}" stroke-opacity="0.12" stroke-width="1">
@@ -181,39 +183,53 @@
           <line x1="480" y1="0" x2="480" y2="500"/><line x1="640" y1="0" x2="640" y2="500"/>
         </g>
         <rect x="24" y="24" width="752" height="452" fill="none" stroke="${accentColor}" stroke-opacity="0.4" stroke-width="2"/>
-        <text x="400" y="235" text-anchor="middle" fill="${accentColor}" font-family="monospace" font-size="28" font-weight="bold" letter-spacing="3">${title}</text>
-        <text x="400" y="275" text-anchor="middle" fill="#a1a1aa" font-family="monospace" font-size="14" letter-spacing="2">${subtitle}</text>
+        <text x="400" y="235" text-anchor="middle" fill="${accentColor}" font-family="monospace" font-size="26" font-weight="bold" letter-spacing="3">${safeTitle}</text>
+        <text x="400" y="275" text-anchor="middle" fill="#a1a1aa" font-family="monospace" font-size="13" letter-spacing="2">${safeSub}</text>
       </svg>`;
       return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-    }
+    };
 
-    // Automatically tries .png, .webp, .jpeg if .jpg isn't found before using fallback
-    function handleSmartImageError(e, fallbackUrl) {
-      const img = e.currentTarget;
-      const exts = ['.png', '.webp', '.jpeg', '.JPG', '.PNG'];
-      const step = parseInt(img.dataset.extStep || '0', 10);
-      const baseSrc = img.dataset.baseSrc || img.getAttribute('src').replace(/\.[^/.]+$/, "");
-      img.dataset.baseSrc = baseSrc;
+    const createTerminalPlaceholder = window.createTerminalPlaceholder;
 
-      if (step < exts.length) {
-        img.dataset.extStep = String(step + 1);
-        img.src = baseSrc + exts[step];
-      } else {
-        img.onerror = null;
-        img.src = fallbackUrl;
-      }
+    // Smart image component that tries .jpg -> .png -> .webp -> .jpeg -> .JPG -> .PNG before fallback
+    function ArchiveImage({ src, alt, className, fallbackTitle, fallbackSubtitle, accentColor = "#f5be0b" }) {
+      const [currentSrc, setCurrentSrc] = useState(src);
+      const [extStep, setExtStep] = useState(0);
+
+      useEffect(() => {
+        setCurrentSrc(src);
+        setExtStep(0);
+      }, [src]);
+
+      const handleError = () => {
+        const exts = [".png", ".webp", ".jpeg", ".JPG", ".PNG", ".WEBP"];
+        const baseSrc = String(src).replace(/\.[^/.]+$/, "");
+        if (extStep < exts.length) {
+          const nextStep = extStep + 1;
+          setExtStep(nextStep);
+          setCurrentSrc(baseSrc + exts[extStep]);
+        } else {
+          setCurrentSrc(createTerminalPlaceholder(fallbackTitle || alt || "M.E.G. ARCHIVE", fallbackSubtitle || "VISUAL TELEMETRY OFFLINE", accentColor));
+        }
+      };
+
+      return (
+        <img
+          src={currentSrc}
+          alt={alt}
+          className={className}
+          onError={handleError}
+        />
+      );
     }
 
     // ============================================================================
     // HERO BACKGROUND IMAGE URL
-    // Put your hero image inside the "images" folder next to index.html
     // ============================================================================
     const HERO_BG_URL = "images/hero-bg.jpg";
-    const HERO_FALLBACK_URL = createTerminalPlaceholder("SECTOR // THRESHOLD", "NON-EUCLIDEAN SPATIAL ANOMALY", "#f5be0b", "#14120a");
 
     // ============================================================================
-    // ENTITIES DATABASE (Monsters)
-    // Put monster images inside the "images" folder with these exact filenames
+    // ENTITIES DATABASE (7 Monsters in images/ folder)
     // ============================================================================
     const ENTITIES = [
       {
@@ -223,7 +239,6 @@
         threatLevel: "EXTREME",
         habitat: "Level 0",
         image: "images/entity-bacteria.jpg",
-        fallbackImage: createTerminalPlaceholder("ENTITY // BACTERIA", "TALL WIRE-FRAME BIOLOGICAL ANOMALY", "#ef4444", "#170b0b"),
         description: "A towering, spindly humanoid organism composed of tangled, tar-black tendon-like filaments. It emits a distorted, metallic howling sound resembling mangled radio transmissions and rapidly stalks wanderers who remain stationary in Level 0 for too long. Direct physical contact results in immediate assimilation or fatal cellular breakdown."
       },
       {
@@ -233,7 +248,6 @@
         threatLevel: "HIGH",
         habitat: "Level 1, Level 2, Level !, Dark Zones",
         image: "images/entity-smiler.jpg",
-        fallbackImage: createTerminalPlaceholder("ENTITY // SMILER", "LUMINESCENT EYES & TEETH IN DARKNESS", "#f97316", "#140d08"),
         description: "Smilers are recognizable almost exclusively by their reflective, glowing eyes and unnaturally wide, gleaming teeth suspended in pitch-black darkness. It is unknown whether they possess a physical body beyond the darkness that shrouds them. They are attracted to light sources—if spotted, turn off flashlights immediately and back away slowly while maintaining eye contact."
       },
       {
@@ -241,9 +255,8 @@
         name: "Hounds",
         classification: "Entity 008 // Quadrupedal Scavenger",
         threatLevel: "MODERATE-HIGH",
-        habitat: "Level 1, Level 2, Level 11",
+        habitat: "Level 1, Level 2, Level 4, Level 9",
         image: "images/entity-hound.jpg",
-        fallbackImage: createTerminalPlaceholder("ENTITY // HOUND", "QUADRUPEDAL HUMANOID MUTATION", "#eab308", "#141108"),
         description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts."
       },
       {
@@ -251,9 +264,8 @@
         name: "Skin-Stealers",
         classification: "Entity 010 // Mimetic Carnivore",
         threatLevel: "SEVERE",
-        habitat: "Level 1, Level 2, Level 4",
+        habitat: "Level 1, Level 2, Level 9",
         image: "images/entity-skin-stealer.jpg",
-        fallbackImage: createTerminalPlaceholder("ENTITY // SKIN-STEALER", "MIMETIC DERMAL PARASITE", "#f97316", "#160f09"),
         description: "Large, pale, humanoid creatures with sunken eyes and microscopic suction bumps covering their flesh. When hunting, they flay deceased or captured wanderers and wear their skin like a decaying suit to lure other humans. You can identify a disguised Skin-Stealer by its translucent, yellowish blood and inability to speak coherent sentences."
       },
       {
@@ -263,7 +275,6 @@
         threatLevel: "HIGH",
         habitat: "Level 2, Tight Maintenance Tunnels",
         image: "images/entity-clump.jpg",
-        fallbackImage: createTerminalPlaceholder("ENTITY // CLUMP", "HYPER-ELASTIC LIMB AMALGAMATION", "#ef4444", "#180a0a"),
         description: "A writhing spherical mass of human limbs—arms, legs, and hands of varying sizes—fused together around a central jaw. Clumps compress themselves into ceiling vents or narrow pipe junctions. When prey passes within a three-meter radius, a long muscular central arm shoots out at blinding speed to drag the victim into the mass."
       },
       {
@@ -273,7 +284,6 @@
         threatLevel: "LETHAL",
         habitat: "Level Fun, Level !, Corrupted Sub-Layers",
         image: "images/entity-partygoer.jpg",
-        fallbackImage: createTerminalPlaceholder("ENTITY // PARTYGOER", "CARVED SMILE // NO-CLIP HIJACKER", "#dc2626", "#1c0808"),
         description: "Tall, bipedal entities with leathery ochre skin, no visible facial features except a crudely carved, bleeding smile, and latch-hook appendices instead of hands. Exceptionally intelligent, they are capable of hacking M.E.G. terminal entries, appending '=)' to documentation to lure unsuspecting explorers into traps."
       },
       {
@@ -283,25 +293,22 @@
         threatLevel: "BIOHAZARD",
         habitat: "Level 37 (Stagnant Dark Pools)",
         image: "images/entity-hydrolitis.jpg",
-        fallbackImage: createTerminalPlaceholder("BIOHAZARD // HYDROLITIS", "WATERBORNE CELLULAR PATHOGEN", "#10b981", "#071512"),
         description: "An invisible bacterium thriving in the unchlorinated, shadowed depths of Level 37's lower subterranean pools. Upon inhalation of warm mist or contact with open wounds, it induces severe delirium, hypothermia, and pulmonary edema within hours."
       }
     ];
 
     // ============================================================================
-    // LEVELS DATABASE (8 Iconic Backrooms Levels across all 5 categories)
-    // Put level images inside the "images" folder with these exact filenames
+    // LEVELS DATABASE (8 Iconic Backrooms Levels in images/ folder)
     // ============================================================================
     const LEVELS = [
       {
         id: "level-0",
         code: "LEVEL 0",
         name: "Level 0 — \"The Lobby\"",
-        danger: "UNSTABLE",
-        survivalRate: "64%",
+        danger: "SAFE",
+        survivalRate: "88%",
         classInfo: "Class 1 // Minimal Entity Count",
         image: "images/level-0.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL 0 // THE LOBBY", "600 MILLION SQ. MILES OF MONO-YELLOW", "#f5be0b", "#181509"),
         shortDesc: "An endless non-linear expanse of yellowing wallpaper, damp carpet, and buzzing fluorescent lights.",
         description: "Level 0 is an expansive non-Euclidean space resembling the back rooms of a commercial retail outlet. All rooms in Level 0 share the same superficial features: worn mono-yellow wallpaper, old moist carpet, scattered electrical outlets, and inconsistently placed fluorescent lighting that hums at a constant, deafening 60Hz frequency. Linear navigation is impossible; walking in a straight line often loops wanderers back to their starting room, and GPS, compasses, and cellular radios fail completely.",
         entities: ["bacteria"]
@@ -310,11 +317,10 @@
         id: "level-1",
         code: "LEVEL 1",
         name: "Level 1 — \"Habitable Zone\"",
-        danger: "UNSTABLE",
-        survivalRate: "78%",
+        danger: "SAFE",
+        survivalRate: "82%",
         classInfo: "Class 1 // Supply Crates Present",
         image: "images/level-1.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL 1 // HABITABLE ZONE", "CONCRETE WAREHOUSE & DIM FOG", "#a1a1aa", "#111317"),
         shortDesc: "A massive concrete warehouse with low-hanging mist and reliable crates of Almond Water.",
         description: "Level 1 is a massive, sprawling warehouse featuring concrete floors and walls, exposed rebar, and a low-hanging mist with no discernible source. Unlike Level 0, this level possesses a steady supply of wooden supply crates that randomly materialize and vanish, containing Almond Water, batteries, medical supplies, and canned rations. However, the overhead lights are prone to flickering off for hours or days at a time—when total blackout occurs, hostile entities emerge in large numbers.",
         entities: ["hound", "smiler", "skin-stealer"]
@@ -323,11 +329,10 @@
         id: "level-2",
         code: "LEVEL 2",
         name: "Level 2 — \"Pipe Dreams\"",
-        danger: "DANGEROUS",
-        survivalRate: "38%",
+        danger: "UNSTABLE",
+        survivalRate: "48%",
         classInfo: "Class 3 // High Thermal Hazard",
         image: "images/level-2.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL 2 // PIPE DREAMS", "CLAUSTROPHOBIC STEAM MAINTENANCE TUNNELS", "#f97316", "#18100a"),
         shortDesc: "Millions of miles of claustrophobic concrete maintenance tunnels lined with scalding steam pipes.",
         description: "Level 2 consists of dark, claustrophobic concrete maintenance hallways stretching for millions of miles. The walls are lined with rusted pipes that transport scalding steam and viscous black sludge, driving ambient temperatures upward of 43°C (110°F) and deeper sectors above 60°C. Most doors are locked or lead into dead-end boiler rooms. The deafening hiss of ruptured valves masks the footsteps of numerous entities stalking the corridors.",
         entities: ["smiler", "clump", "hound", "skin-stealer"]
@@ -340,7 +345,6 @@
         survivalRate: "94%",
         classInfo: "Class 0 // M.E.G. Bastion Sector",
         image: "images/level-4.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL 4 // ABANDONED OFFICE", "EMPTY CUBICLES & RAINY WINDOWS", "#10b981", "#091511"),
         shortDesc: "An empty, quiet office building largely devoid of threats and rich in Almond Water.",
         description: "Level 4 resembles an empty, modern office building almost completely stripped of furniture save for occasional cubicles, water coolers, and vending machines filled with Almond Water. It is considered the safest crossroads for newly arrived wanderers to recover psychologically. Though windows line the exterior walls, they are darkened by simulated heavy rain—wanderers are strictly advised never to approach windows that appear clear or open.",
         entities: ["hound"]
@@ -349,24 +353,22 @@
         id: "level-37",
         code: "LEVEL 37",
         name: "Level 37 — \"Sublimity\" (The Poolrooms)",
-        danger: "SAFE",
-        survivalRate: "89%",
-        classInfo: "Class 0 // Acoustic Anomaly",
+        danger: "UNSTABLE",
+        survivalRate: "76%",
+        classInfo: "Class 2 // Acoustic & Biohazard Anomaly",
         image: "images/level-37.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL 37 // THE POOLROOMS", "INFINITE WHITE CERAMIC TILED POOLS", "#14b8a6", "#071618"),
         shortDesc: "A serene complex of interconnected ceramic-tiled rooms submerged in lukewarm turquoise water.",
-        description: "Commonly referred to as 'The Poolrooms', Level 37 is a vast complex of interconnected rooms and corridors completely clad in pristine white and pastel ceramic tiles, partially submerged in lukewarm, crystal-clear water. Sound behaves anomalously here: voices and splashes are muffled almost immediately, inducing a hypnotic sense of tranquility. While daylight-lit zones are completely free of entities, explorers must avoid descending into the unlit abyssal drains where the Hydrolitis Plague festers.",
+        description: "Commonly referred to as 'The Poolrooms', Level 37 is a vast complex of interconnected rooms and corridors completely clad in pristine white and pastel ceramic tiles, partially submerged in lukewarm, crystal-clear water. Sound behaves anomalously here: voices and splashes are muffled almost immediately, inducing a hypnotic sense of tranquility. While daylight-lit zones are free of predators, explorers must avoid descending into the unlit abyssal drains where the Hydrolitis Plague festers.",
         entities: ["hydrolitis"]
       },
       {
         id: "level-9",
         code: "LEVEL 9",
         name: "Level 9 — \"The Darkened Suburbs\"",
-        danger: "HOSTILE",
-        survivalRate: "19%",
+        danger: "DANGEROUS",
+        survivalRate: "24%",
         classInfo: "Class 4 // Perpetual Midnight",
         image: "images/level-9.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL 9 // DARKENED SUBURBS", "MIDNIGHT STREETS & AUTONOMOUS EYES", "#ef4444", "#170b11"),
         shortDesc: "An infinite suburban neighborhood trapped in perpetual midnight fog and patrolled by anomalies.",
         description: "Level 9 is an infinite suburban neighborhood trapped in perpetual midnight, blanketed in wet asphalt and unnatural fog. The houses are furnished as if evacuated seconds prior, often featuring working power grids that flicker erratically. Staying on the open street under working streetlights is fatal; wanderers must move stealthily through backyards and abandoned garages to evade the dense concentration of entities prowling the sidewalks.",
         entities: ["smiler", "skin-stealer", "hound"]
@@ -379,7 +381,6 @@
         survivalRate: "1.2%",
         classInfo: "Class Deadzone // 10 KM Hospital Sprint",
         image: "images/level-run.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL ! // RUN FOR YOUR LIFE", "FLASHING RED EMERGENCY CORRIDOR", "#dc2626", "#220606"),
         shortDesc: "A ten-kilometer hospital corridor bathed in blaring red sirens and a relentless horde behind you.",
         description: "Level ! consists of an infinitely long, narrow hospital hallway bathed in flashing red emergency lights and deafening klaxon alarms. The instant a wanderer manifests here, a massive horde of hundreds of entities bursts through the doors directly behind them. The only known method of survival is an uninterrupted 10-kilometer sprint forward while dodging overturned gurneys, hospital beds, and debris until reaching the exit door at the end of the corridor.",
         entities: ["smiler", "hound", "skin-stealer", "clump", "partygoer"]
@@ -388,13 +389,12 @@
         id: "level-fun",
         code: "LEVEL FUN",
         name: "Level Fun — \"The Party Rooms\" =)",
-        danger: "DEADLY",
-        survivalRate: "0.04%",
-        classInfo: "Class Deadzone // Compromised Entry",
+        danger: "HOSTILE",
+        survivalRate: "4.5%",
+        classInfo: "Class 5 // Compromised Hive Sector",
         image: "images/level-fun.jpg",
-        fallbackImage: createTerminalPlaceholder("LEVEL FUN // DO NOT ENTER =)", "COLORFUL PLAYPLACE // APEX TRAP", "#dc2626", "#1d070c"),
         shortDesc: "A brightly decorated children's entertainment center serving as the primary hive of the Partygoers.",
-        description: "Despite frequent attempts by the Partygoers to overwrite this database entry with invitations to a 'harmless celebration =)', M.E.G. High Command classifies Level Fun as an absolute Deadzone. The environment resembles a nostalgic 1990s children's birthday parlor complete with plastic play-tubes, confetti, and distorted calliope music playing over intercoms. Entry into this level via no-clipping under tables in Level 1 or Level 0 is considered virtually unsurvivable.",
+        description: "Despite frequent attempts by the Partygoers to overwrite this database entry with invitations to a 'harmless celebration =)', M.E.G. High Command classifies Level Fun as an extreme Hostile Hive. The environment resembles a nostalgic 1990s children's birthday parlor complete with plastic play-tubes, confetti, and distorted calliope music playing over intercoms. Entry into this level via no-clipping under tables in Level 1 or Level 0 is considered almost impossible to escape.",
         entities: ["partygoer"]
       }
     ];
@@ -524,10 +524,12 @@
           {/* 1. HERO SECTION */}
           <section className="relative border-b border-zinc-800 overflow-hidden">
             {/* Hero Background Image with Dark Gradient Overlay & Automatic Fallback */}
-            <img
+            <ArchiveImage
               src={HERO_BG_URL}
-              onError={(e) => handleSmartImageError(e, HERO_FALLBACK_URL)}
               alt="Backrooms Hero Background"
+              fallbackTitle="SECTOR // THRESHOLD"
+              fallbackSubtitle="NON-EUCLIDEAN SPATIAL ANOMALY"
+              accentColor="#f5be0b"
               className="absolute inset-0 w-full h-full object-cover object-center opacity-35 scale-105 transition-transform duration-1000 pointer-events-none"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-[#070709]/80 via-[#070709]/65 to-[#070709]" />
@@ -683,10 +685,12 @@
                         <div>
                           {/* Card Image Container */}
                           <div className="relative h-48 w-full overflow-hidden bg-zinc-950 border-b border-zinc-800">
-                            <img
+                            <ArchiveImage
                               src={level.image}
-                              onError={(e) => handleSmartImageError(e, level.fallbackImage)}
                               alt={level.name}
+                              fallbackTitle={level.code}
+                              fallbackSubtitle={level.name}
+                              accentColor="#f5be0b"
                               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-[#0c0d10] via-transparent to-black/40" />
@@ -768,10 +772,12 @@
                     className="text-left p-3 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-center gap-3.5"
                   >
                     <div className="w-14 h-14 shrink-0 bg-zinc-900 border border-zinc-800 overflow-hidden">
-                      <img
+                      <ArchiveImage
                         src={ent.image}
-                        onError={(e) => handleSmartImageError(e, ent.fallbackImage)}
                         alt={ent.name}
+                        fallbackTitle={ent.name}
+                        fallbackSubtitle={ent.threatLevel}
+                        accentColor="#ef4444"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                     </div>
@@ -833,10 +839,12 @@
                 <div className="overflow-y-auto p-4 sm:p-6 space-y-6">
                   {/* Large Level Image */}
                   <div className="relative h-56 sm:h-72 w-full bg-zinc-950 border border-zinc-800 overflow-hidden">
-                    <img
+                    <ArchiveImage
                       src={activeLevel.image}
-                      onError={(e) => handleSmartImageError(e, activeLevel.fallbackImage)}
                       alt={activeLevel.name}
+                      fallbackTitle={activeLevel.code}
+                      fallbackSubtitle={activeLevel.name}
+                      accentColor="#f5be0b"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c0f] via-transparent to-black/30" />
@@ -972,10 +980,12 @@
                 <div className="p-4 sm:p-6 space-y-5">
                   {/* Monster Image */}
                   <div className="relative h-52 sm:h-60 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
-                    <img
+                    <ArchiveImage
                       src={activeEntity.image}
-                      onError={(e) => handleSmartImageError(e, activeEntity.fallbackImage)}
                       alt={activeEntity.name}
+                      fallbackTitle={activeEntity.name}
+                      fallbackSubtitle={activeEntity.classification}
+                      accentColor="#ef4444"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0e0a0b] via-transparent to-transparent" />
