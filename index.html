@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>THE BACKROOMS ARCHIVE // M.E.G. DATABASE</title>
   
-  <!-- Google Fonts: JetBrains Mono & Share Tech Mono -->
+  <!-- Google Fonts: JetBrains Mono & Share Tech Mono (with Cyrillic support) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=Share+Tech+Mono&subset=latin,cyrillic&display=swap" rel="stylesheet">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -230,179 +230,424 @@
     const HERO_BG_URL = "images/hero-bg.jpg";
 
     // ============================================================================
-    // ENTITIES DATABASE (7 Monsters in images/ folder)
+    // UI TRANSLATIONS DICTIONARY (EN / RU)
+    // ============================================================================
+    const UI_TEXT = {
+      en: {
+        osVersion: "M.E.G. ARCHIVE_OS v4.09",
+        clearance: "CLEARANCE: LEVEL-4 [OVERSEER]",
+        entityIndexBtn: "ENTITY_INDEX",
+        heroBadge: "// NON-EUCLIDEAN DATABASE TERMINAL",
+        heroTitle1: "THE BACKROOMS",
+        heroTitle2: "ARCHIVE",
+        heroSubtitle: "Survive. Document. Archive.",
+        heroDesc: "If you are not careful and you no-clip out of reality in the wrong areas, you will end up in the Backrooms. This terminal aggregates verified spatial cartography, environmental hazards, and hostile biological entities documented by wandering operatives.",
+        statLevelsLabel: "Documented Sectors",
+        statLevelsUnit: "LEVELS",
+        statEntitiesLabel: "Cataloged Threats",
+        statEntitiesUnit: "ENTITIES",
+        statHumLabel: "Acoustic Hum",
+        statAnchorLabel: "Reality Anchor",
+        statAnchorVal: "ONLINE",
+        filterSub: "// DIRECTORY_QUERY_MODULE",
+        filterTitle: "SECTOR CLASSIFICATION FILTER",
+        searchPlaceholder: "SEARCH LEVEL OR KEYWORD...",
+        clearBtn: "[CLR]",
+        allSectorsBtn: "ALL SECTORS",
+        dangerLabels: {
+          SAFE: "SAFE",
+          UNSTABLE: "UNSTABLE",
+          DANGEROUS: "DANGEROUS",
+          HOSTILE: "HOSTILE",
+          DEADLY: "DEADLY"
+        },
+        zeroRecordsTitle: "// ZERO RECORDS MATCHING FILTER CRITERIA",
+        zeroRecordsSub: "The requested sector either does not exist or has been expunged from M.E.G. servers.",
+        resetFilterBtn: "[RESET FILTER PARAMETERS]",
+        cardSurvival: "SURVIVAL",
+        cardEntities: "ENTITIES",
+        cardFileId: "FILE_ID",
+        cardAccess: "ACCESS DOSSIER",
+        codexSub: "// BIOLOGICAL_THREAT_REGISTRY",
+        codexTitle: "DOCUMENTED ENTITIES",
+        codexHint: "Click any entity below or inside a Level Dossier to inspect biological threat data.",
+        threatSuffix: "THREAT",
+        footerLeft: "MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL",
+        footerRight: "ENCRYPTED CONNECTION // NO-CLIP TELEMETRY SYNCHRONIZED",
+        modalSectorDossier: "// SECTOR DOSSIER",
+        modalCloseEsc: "[ESC / CLOSE X]",
+        modalDangerPrefix: "DANGER",
+        modalSurvivalProb: "ESTIMATED SURVIVAL PROBABILITY",
+        modalBiomeLabel: "PRIMARY BIOME / ARCHITECTURE",
+        modalExitsLabel: "VERIFIED EXITS & TRANSITIONS",
+        modalEnvDesc: "// ENVIRONMENTAL_DESCRIPTION & ANOMALOUS PROPERTIES",
+        modalConfirmedEntities: "// CONFIRMED HOSTILE ENTITIES IN THIS SECTOR",
+        modalClickEntityHint: "[CLICK ENTITY TO INSPECT]",
+        modalFileBtn: "[FILE \u2192]",
+        modalFooterVerified: "ARCHIVE LOG // VERIFIED BY M.E.G. CARTOGRAPHY",
+        modalCloseDossier: "[CLOSE DOSSIER]",
+        entityModalHeader: "// BIOLOGICAL THREAT FILE",
+        entityModalReturn: "[RETURN / X]",
+        entityFullFrame: "FULL FRAME",
+        entityCropView: "CROP VIEW",
+        entityThreatPrefix: "THREAT",
+        entityPrimaryHabitat: "PRIMARY HABITAT",
+        entityFieldObs: "// FIELD OBSERVATIONS & DESCRIPTION",
+        entitySurvivalProtocol: "// M.E.G. SURVIVAL PROTOCOL & COUNTERMEASURES",
+        entityAckClose: "[ACKNOWLEDGE & CLOSE FILE]"
+      },
+      ru: {
+        osVersion: "M.E.G. АРХИВ_ОС v4.09",
+        clearance: "ДОПУСК: УРОВЕНЬ-4 [СМОТРИТЕЛЬ]",
+        entityIndexBtn: "ИНДЕКС_СУЩНОСТЕЙ",
+        heroBadge: "// ТЕРМИНАЛ НЕЕВКЛИДОВОЙ БАЗЫ ДАННЫХ",
+        heroTitle1: "АРХИВ",
+        heroTitle2: "ЗАКУЛИСЬЯ",
+        heroSubtitle: "Выживай. Документируй. Архив.",
+        heroDesc: "Если вы не будете осторожны и выпадете из реальности (no-clip) в неподходящем месте, вы окажетесь в Закулисье (Backrooms). Этот терминал собирает проверенную пространственную картографию, природные аномалии и досье враждебных биологических сущностей, задокументированных странниками.",
+        statLevelsLabel: "Изучено секторов",
+        statLevelsUnit: "УРОВНЕЙ",
+        statEntitiesLabel: "Записано угроз",
+        statEntitiesUnit: "СУЩНОСТЕЙ",
+        statHumLabel: "Гул ламп",
+        statAnchorLabel: "Якорь реальности",
+        statAnchorVal: "В СЕТИ",
+        filterSub: "// МОДУЛЬ_ПОИСКА_ДИРЕКТОРИЙ",
+        filterTitle: "ФИЛЬТР КЛАССИФИКАЦИИ СЕКТОРОВ",
+        searchPlaceholder: "ПОИСК УРОВНЯ ИЛИ СЛОВА...",
+        clearBtn: "[СБР]",
+        allSectorsBtn: "ВСЕ СЕКТОРЫ",
+        dangerLabels: {
+          SAFE: "БЕЗОПАСНО",
+          UNSTABLE: "НЕСТАБИЛЬНО",
+          DANGEROUS: "ОПАСНО",
+          HOSTILE: "ВРАЖДЕБНО",
+          DEADLY: "СМЕРТЕЛЬНО"
+        },
+        zeroRecordsTitle: "// ЗАПИСЕЙ ПО ДАННОМУ ФИЛЬТРУ НЕ НАЙДЕНО",
+        zeroRecordsSub: "Запрошенный сектор не существует или был удалён с серверов Б.И.Г. (M.E.G.).",
+        resetFilterBtn: "[СБРОСИТЬ ПАРАМЕТРЫ ФИЛЬТРА]",
+        cardSurvival: "ВЫЖИВАНИЕ",
+        cardEntities: "СУЩНОСТИ",
+        cardFileId: "ФАЙЛ_ID",
+        cardAccess: "ОТКРЫТЬ ДОСЬЕ",
+        codexSub: "// РЕЕСТР_БИОЛОГИЧЕСКИХ_УГРОЗ",
+        codexTitle: "ЗАДОКУМЕНТИРОВАННЫЕ СУЩНОСТИ",
+        codexHint: "Нажмите на любую сущность ниже или внутри досье уровня для просмотра данных об угрозе.",
+        threatSuffix: "УГРОЗА",
+        footerLeft: "ПУБЛИЧНЫЙ ТЕРМИНАЛ Б.И.Г. (MAJOR EXPLORER GROUP)",
+        footerRight: "ЗАШИФРОВАННОЕ СОЕДИНЕНИЕ // ТЕЛЕМЕТРИЯ СИНХРОНИЗИРОВАНА",
+        modalSectorDossier: "// ДОСЬЕ СЕКТОРА",
+        modalCloseEsc: "[ESC / ЗАКРЫТЬ X]",
+        modalDangerPrefix: "ОПАСНОСТЬ",
+        modalSurvivalProb: "РАСЧЁТНАЯ ВЕРОЯТНОСТЬ ВЫЖИВАНИЯ",
+        modalBiomeLabel: "ОСНОВНОЙ БИОМ / АРХИТЕКТУРА",
+        modalExitsLabel: "ПОДТВЕРЖДЁННЫЕ ВЫХОДЫ И ПЕРЕХОДЫ",
+        modalEnvDesc: "// ОПИСАНИЕ СРЕДЫ И АНОМАЛЬНЫЕ СВОЙСТВА",
+        modalConfirmedEntities: "// ПОДТВЕРЖДЁННЫЕ ВРАЖДЕБНЫЕ СУЩНОСТИ В СЕКТОРЕ",
+        modalClickEntityHint: "[НАЖМИТЕ ДЛЯ ПРОСМОТРА]",
+        modalFileBtn: "[ДОСЬЕ \u2192]",
+        modalFooterVerified: "АРХИВНЫЙ ЛОГ // ПОДТВЕРЖДЕНО КАРТОГРАФИЕЙ Б.И.Г.",
+        modalCloseDossier: "[ЗАКРЫТЬ ДОСЬЕ]",
+        entityModalHeader: "// ДОСЬЕ БИОЛОГИЧЕСКОЙ УГРОЗЫ",
+        entityModalReturn: "[НАЗАД / X]",
+        entityFullFrame: "ВЕСЬ КАДР",
+        entityCropView: "ПОРТРЕТ",
+        entityThreatPrefix: "УГРОЗА",
+        entityPrimaryHabitat: "ОСНОВНОЙ АРЕАЛ ОБИТАНИЯ",
+        entityFieldObs: "// ПОЛЕВЫЕ НАБЛЮДЕНИЯ И ОПИСАНИЕ",
+        entitySurvivalProtocol: "// ПРОТОКОЛ ВЫЖИВАНИЯ И КОНТРМЕРЫ Б.И.Г.",
+        entityAckClose: "[ПРИНЯТЬ К СВЕДЕНИЮ И ЗАКРЫТЬ]"
+      }
+    };
+
+    // ============================================================================
+    // ENTITIES DATABASE (7 Monsters in images/ folder with EN & RU data)
     // ============================================================================
     const ENTITIES = [
       {
         id: "bacteria",
         name: "Bacteria (Lifeform)",
+        name_ru: "Бактерия (Форма жизни)",
         classification: "Entity 001 // Hostile Pathogen-Construct",
+        classification_ru: "Сущность 001 // Враждебный патоген-конструкт",
         threatLevel: "EXTREME",
+        threat_ru: "ЭКСТРЕМАЛЬНАЯ",
         habitat: "Level 0",
+        habitat_ru: "Уровень 0",
         image: "images/entity-bacteria.jpg",
         imagePosition: "center 18%",
-        description: "A towering, spindly humanoid organism composed of tangled, tar-black tendon-like filaments. It emits a distorted, metallic howling sound resembling mangled radio transmissions and rapidly stalks wanderers who remain stationary in Level 0 for too long. Direct physical contact results in immediate assimilation or fatal cellular breakdown."
+        description: "A towering, spindly humanoid organism composed of tangled, tar-black tendon-like filaments. It emits a distorted, metallic howling sound resembling mangled radio transmissions and rapidly stalks wanderers who remain stationary in Level 0 for too long. Direct physical contact results in immediate assimilation or fatal cellular breakdown.",
+        description_ru: "Высокий, долговязый гуманоидный организм, состоящий из спутанных чёрно-смоляных нитей, напоминающих сухожилия и проволоку. Издаёт искажённый металлический вой, похожий на обрывки радиопередач, и стремительно преследует странников, которые слишком долго остаются на одном месте на Уровне 0. Прямой физический контакт приводит к мгновенной гибели или клеточному распаду.",
+        survivalTip: "Never stay stationary when you hear distorted metallic screeching. Break line-of-sight immediately by turning sharp corners across non-linear rooms.",
+        survivalTip_ru: "Никогда не стойте на месте, если слышите искажённый металлический рёв. Немедленно разрывайте линию видимости, резко сворачивая за углы комнат."
       },
       {
         id: "smiler",
         name: "Smilers",
+        name_ru: "Улыбающиеся (Smilers)",
         classification: "Entity 003 // Photophobic Predator",
+        classification_ru: "Сущность 003 // Светобоязненный хищник",
         threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
         habitat: "Level 1, Level 2, Level !, Dark Zones",
+        habitat_ru: "Уровень 1, Уровень 2, Уровень !, Тёмные зоны",
         image: "images/entity-smiler.jpg",
         imagePosition: "center center",
-        description: "Smilers are recognizable almost exclusively by their reflective, glowing eyes and unnaturally wide, gleaming teeth suspended in pitch-black darkness. It is unknown whether they possess a physical body beyond the darkness that shrouds them. They are attracted to light sources—if spotted, turn off flashlights immediately and back away slowly while maintaining eye contact."
+        description: "Smilers are recognizable almost exclusively by their reflective, glowing eyes and unnaturally wide, gleaming teeth suspended in pitch-black darkness. It is unknown whether they possess a physical body beyond the darkness that shrouds them. They are attracted to light sources—if spotted, turn off flashlights immediately and back away slowly while maintaining eye contact.",
+        description_ru: "Улыбающихся можно узнать почти исключительно по их светящимся глазам и неестественно широкой, сверкающей зубастой улыбке, парящей в кромешной тьме. До сих пор неизвестно, есть ли у них физическое тело за пределами окутывающего их мрака. Их привлекает свет фонариков — при обнаружении немедленно выключите источник света и медленно отступайте спиной вперёд, не разрывая зрительного контакта.",
+        survivalTip: "Extinguish all flashlights immediately. Maintain steady eye contact and walk backward slowly; running or turning your back triggers an instant lunge.",
+        survivalTip_ru: "Немедленно погасите все фонари. Поддерживайте прямой зрительный контакт и медленно пятиться назад; бегство или поворот спиной спровоцируют мгновенный бросок."
       },
       {
         id: "hound",
         name: "Hounds",
+        name_ru: "Гончие (Hounds)",
         classification: "Entity 008 // Quadrupedal Scavenger",
+        classification_ru: "Сущность 008 // Четвероногий падальщик",
         threatLevel: "MODERATE-HIGH",
+        threat_ru: "СРЕДНЕ-ВЫСОКАЯ",
         habitat: "Level 1, Level 2, Level 4, Level 9",
+        habitat_ru: "Уровень 1, Уровень 2, Уровень 4, Уровень 9",
         image: "images/entity-hound.jpg",
         imagePosition: "center 20%",
-        description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts."
+        description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts.",
+        description_ru: "Гротескные, истощённые гуманоидные существа, передвигающиеся на четвереньках с вывернутыми суставами и длинными когтями. Густые спутанные волосы закрывают их головы, скрывая налитые кровью глаза и челюсть, способную неестественно широко раскрываться. Хотя голодные Гончие крайне агрессивны, их можно временно запугать прямым, непоколебимым взглядом глаза в глаза.",
+        survivalTip: "Stand your ground and stare directly into the Hound's eyes without blinking when it growls. Once it hesitates, back away out of its territory.",
+        survivalTip_ru: "Не убегайте: замрите и смотрите прямо в глаза Гончей, не моргая, когда она рычит. Когда сущность заколеблется, медленно покиньте её территорию."
       },
       {
         id: "skin-stealer",
         name: "Skin-Stealers",
+        name_ru: "Кожекрады (Skin-Stealers)",
         classification: "Entity 010 // Mimetic Carnivore",
+        classification_ru: "Сущность 010 // Мимикрирующий хищник",
         threatLevel: "SEVERE",
+        threat_ru: "СЕРЬЁЗНАЯ",
         habitat: "Level 1, Level 2, Level 9",
+        habitat_ru: "Уровень 1, Уровень 2, Уровень 9",
         image: "images/entity-skin-stealer.jpg",
         imagePosition: "center 15%",
-        description: "Large, pale, humanoid creatures with sunken eyes and microscopic suction bumps covering their flesh. When hunting, they flay deceased or captured wanderers and wear their skin like a decaying suit to lure other humans. You can identify a disguised Skin-Stealer by its translucent, yellowish blood and inability to speak coherent sentences."
+        description: "Large, pale, humanoid creatures with sunken eyes and microscopic suction bumps covering their flesh. When hunting, they flay deceased or captured wanderers and wear their skin like a decaying suit to lure other humans. You can identify a disguised Skin-Stealer by its translucent, yellowish blood and inability to speak coherent sentences.",
+        description_ru: "Крупные бледные гуманоидные существа с запавшими глазами и микроскопическими присосками по всему телу. На охоте они сдирают кожу с погибших или пойманных странников и носят её как разлагающийся костюм, чтобы приманивать других людей. Замаскированного Кожекрада можно вычислить по мутной желтоватой крови, запаху гнили и неспособности произносить связные предложения.",
+        survivalTip: "Never approach wanderers who repeat fragmented phrases in a hollow voice or have loose, ill-fitting skin. Verify identity from a safe distance.",
+        survivalTip_ru: "Никогда не приближайтесь к «людям», которые повторяют обрывочные фразы глухим голосом или чья кожа выглядит обвисшей. Проверяйте личность с безопасной дистанции."
       },
       {
         id: "clump",
         name: "Clumps",
+        name_ru: "Клубки (Clumps)",
         classification: "Entity 015 // Amalgamated Appendages",
+        classification_ru: "Сущность 015 // Сросшийся конгломерат конечностей",
         threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
         habitat: "Level 2, Tight Maintenance Tunnels",
+        habitat_ru: "Уровень 2, Узкие технические туннели",
         image: "images/entity-clump.jpg",
         imagePosition: "center 25%",
-        description: "A writhing spherical mass of human limbs—arms, legs, and hands of varying sizes—fused together around a central jaw. Clumps compress themselves into ceiling vents or narrow pipe junctions. When prey passes within a three-meter radius, a long muscular central arm shoots out at blinding speed to drag the victim into the mass."
+        description: "A writhing spherical mass of human limbs—arms, legs, and hands of varying sizes—fused together around a central jaw. Clumps compress themselves into ceiling vents or narrow pipe junctions. When prey passes within a three-meter radius, a long muscular central arm shoots out at blinding speed to drag the victim into the mass.",
+        description_ru: "Извивающаяся сферическая масса человеческих конечностей — рук, ног и кистей разных размеров, — сросшихся вокруг центральной зубастой пасти. Клубки протискиваются в потолочные вентиляционные шахты или узкие развилки труб. Когда жертва проходит в радиусе трёх метров, длинная мускулистая центральная рука молниеносно выбрасывается вперёд и затягивает добычу внутрь.",
+        survivalTip: "Inspect ceiling vents and pipe junctions before passing underneath. Stay outside a 3-meter radius of any organic movement behind grates.",
+        survivalTip_ru: "Внимательно осматривайте потолочные решётки и узлы труб перед тем, как пройти под ними. Держитесь дальше 3 метров от любого движения за вентиляцией."
       },
       {
         id: "partygoer",
         name: "Partygoers",
+        name_ru: "Тусовщики (Partygoers)",
         classification: "Entity 067 // High-Intelligence Apex Threat",
+        classification_ru: "Сущность 067 // Высокоинтеллектуальная высшая угроза",
         threatLevel: "LETHAL",
+        threat_ru: "СМЕРТЕЛЬНАЯ",
         habitat: "Level Fun, Level !, Corrupted Sub-Layers",
+        habitat_ru: "Уровень Веселья (Level Fun), Уровень !, Заражённые подуровни",
         image: "images/entity-partygoer.jpg",
         imagePosition: "center 8%",
-        description: "Tall, bipedal entities with leathery ochre skin, no visible facial features except a crudely carved, bleeding smile, and latch-hook appendices instead of hands. Exceptionally intelligent, they are capable of hacking M.E.G. terminal entries, appending '=)' to documentation to lure unsuspecting explorers into traps."
+        description: "Tall, bipedal entities with leathery ochre skin, no visible facial features except a crudely carved, bleeding smile, and latch-hook appendices instead of hands. Exceptionally intelligent, they are capable of hacking M.E.G. terminal entries, appending '=)' to documentation to lure unsuspecting explorers into traps.",
+        description_ru: "Высокие двуногие сущности с кожистой охряно-жёлтой плотью, без видимых черт лица, кроме грубо вырезанной кровоточащей улыбки, и с крючковатыми отростками вместо кистей рук. Обладают высоким интеллектом: способны взламывать терминалы Б.И.Г., добавляя смайлик «=)» в архивные статьи, чтобы заманивать доверчивых исследователей в смертельные ловушки.",
+        survivalTip: "DISTRUST ANY ARCHIVE FILE ENDING WITH '=)'! If you hear distant calliope music or see floating red balloons, retreat in the opposite direction immediately.",
+        survivalTip_ru: "НЕ ДОВЕРЯЙТЕ ФАЙЛАМ С СИМВОЛОМ «=)»! Если вы слышите далёкую цирковую музыку или видите красные воздушные шарики — немедленно бегите в обратную сторону."
       },
       {
         id: "hydrolitis",
         name: "Hydrolitis Plague",
+        name_ru: "Гидролитовая чума (Hydrolitis Plague)",
         classification: "Entity 037 // Waterborne Microbial Pathogen",
+        classification_ru: "Сущность 037 // Водный микробиологический патоген",
         threatLevel: "BIOHAZARD",
+        threat_ru: "БИОУГРОЗА",
         habitat: "Level 37 (Stagnant Dark Pools)",
+        habitat_ru: "Уровень 37 (Тёмные застойные бассейны)",
         image: "images/entity-hydrolitis.jpg",
         imagePosition: "center center",
-        description: "An invisible bacterium thriving in the unchlorinated, shadowed depths of Level 37's lower subterranean pools. Upon inhalation of warm mist or contact with open wounds, it induces severe delirium, hypothermia, and pulmonary edema within hours."
+        description: "An invisible bacterium thriving in the unchlorinated, shadowed depths of Level 37's lower subterranean pools. Upon inhalation of warm mist or contact with open wounds, it induces severe delirium, hypothermia, and pulmonary edema within hours.",
+        description_ru: "Невидимая глазу бактерия, процветающая в нехлорированных, погружённых во мрак глубинах нижних подземных резервуаров Уровня 37. При вдыхании тёплого тумана или попадании воды в открытые царапины вызывает тяжёлый бред, лихорадку, переохлаждение и отёк лёгких в течение нескольких часов.",
+        survivalTip: "Only wade through brightly lit, chlorinated turquoise pools in Level 37. Boil all collected water and ration Almond Water to purge early infection.",
+        survivalTip_ru: "Передвигайтесь только по ярко освещённым бирюзовым бассейнам с запахом хлора. Кипятите любую воду и пейте Миндальную воду при первых симптомах."
       }
     ];
 
     // ============================================================================
-    // LEVELS DATABASE (8 Iconic Backrooms Levels in images/ folder)
+    // LEVELS DATABASE (8 Iconic Backrooms Levels in images/ folder with EN & RU)
     // ============================================================================
     const LEVELS = [
       {
         id: "level-0",
         code: "LEVEL 0",
         name: "Level 0 — \"The Lobby\"",
+        name_ru: "Уровень 0 — «Лобби»",
         danger: "SAFE",
         survivalRate: "88%",
         classInfo: "Class 1 // Minimal Entity Count",
+        subtitle_ru: "Класс 1 // Минимальное число сущностей",
+        biome: "Infinite Mono-Yellow Commercial Rooms",
+        biome_ru: "Бесконечные жёлтые офисные комнаты",
+        exits: "No-clipping through walls/floors leads to Level 1; rare fire doors lead to Level 2.",
+        exits_ru: "Выпадение сквозь стены или пол ведёт на Уровень 1; редкие пожарные двери ведут на Уровень 2.",
         image: "images/level-0.jpg",
         shortDesc: "An endless non-linear expanse of yellowing wallpaper, damp carpet, and buzzing fluorescent lights.",
+        shortDesc_ru: "Бесконечный нелинейный лабиринт пожелтевших обоев, влажного ковролина и гудящих люминесцентных ламп.",
         description: "Level 0 is an expansive non-Euclidean space resembling the back rooms of a commercial retail outlet. All rooms in Level 0 share the same superficial features: worn mono-yellow wallpaper, old moist carpet, scattered electrical outlets, and inconsistently placed fluorescent lighting that hums at a constant, deafening 60Hz frequency. Linear navigation is impossible; walking in a straight line often loops wanderers back to their starting room, and GPS, compasses, and cellular radios fail completely.",
+        description_ru: "Уровень 0 представляет собой гигантское неевклидово пространство, напоминающее подсобные помещения торгового центра. Все комнаты имеют одинаковые черты: выцветшие монотонно-жёлтые обои, старый промокший ковёр, редкие розетки и хаотично расположенные лампы дневного света, непрерывно гудящие на частоте 60 Гц. Линейная навигация невозможна: идя по прямой, странник часто возвращается в исходную точку, а GPS, компасы и радиосвязь полностью отказывают.",
         entities: ["bacteria"]
       },
       {
         id: "level-1",
         code: "LEVEL 1",
         name: "Level 1 — \"Habitable Zone\"",
+        name_ru: "Уровень 1 — «Обитаемая зона»",
         danger: "SAFE",
         survivalRate: "82%",
         classInfo: "Class 1 // Supply Crates Present",
+        subtitle_ru: "Класс 1 // Наличие ящиков с припасами",
+        biome: "Sprawling Concrete Warehouse & Mist",
+        biome_ru: "Исполинский бетонный склад в тумане",
+        exits: "Unlocked concrete hallways lead to Level 2; fire escapes can lead to Level 4.",
+        exits_ru: "Незапертые бетонные коридоры ведут на Уровень 2; пожарные лестницы ведут на Уровень 4.",
         image: "images/level-1.jpg",
         shortDesc: "A massive concrete warehouse with low-hanging mist and reliable crates of Almond Water.",
+        shortDesc_ru: "Огромный бетонный склад с низким туманом и регулярно появляющимися ящиками с Миндальной водой.",
         description: "Level 1 is a massive, sprawling warehouse featuring concrete floors and walls, exposed rebar, and a low-hanging mist with no discernible source. Unlike Level 0, this level possesses a steady supply of wooden supply crates that randomly materialize and vanish, containing Almond Water, batteries, medical supplies, and canned rations. However, the overhead lights are prone to flickering off for hours or days at a time—when total blackout occurs, hostile entities emerge in large numbers.",
+        description_ru: "Уровень 1 — это колоссальный склад с бетонными полами и стенами, торчащей арматурой и стелющимся конденсатным туманом. В отличие от Уровня 0, здесь регулярно материализуются деревянные ящики с припасами: Миндальной водой, батарейками, медикаментами и пайками, благодаря чему Б.И.Г. основала здесь крупные базы. Однако прожекторы под потолком могут внезапно гаснуть на несколько часов — в моменты полного блэкаута из темноты массово выходят враждебные сущности.",
         entities: ["hound", "smiler", "skin-stealer"]
       },
       {
         id: "level-2",
         code: "LEVEL 2",
         name: "Level 2 — \"Pipe Dreams\"",
+        name_ru: "Уровень 2 — «Водопроводные мечты»",
         danger: "UNSTABLE",
         survivalRate: "48%",
         classInfo: "Class 3 // High Thermal Hazard",
+        subtitle_ru: "Класс 3 // Высокая температурная угроза",
+        biome: "Claustrophobic Steam Maintenance Tunnels",
+        biome_ru: "Узкие технические туннели с паровыми трубами",
+        exits: "Finding unlocked office-style doors leads to Level 4; elevators lead to Level 1.",
+        exits_ru: "Незапертые офисные двери ведут на Уровень 4; редкие рабочие лифты возвращают на Уровень 1.",
         image: "images/level-2.jpg",
         shortDesc: "Millions of miles of claustrophobic concrete maintenance tunnels lined with scalding steam pipes.",
+        shortDesc_ru: "Миллионы километров узких бетонных технических коридоров, увитых раскалёнными паровыми трубами.",
         description: "Level 2 consists of dark, claustrophobic concrete maintenance hallways stretching for millions of miles. The walls are lined with rusted pipes that transport scalding steam and viscous black sludge, driving ambient temperatures upward of 43°C (110°F) and deeper sectors above 60°C. Most doors are locked or lead into dead-end boiler rooms. The deafening hiss of ruptured valves masks the footsteps of numerous entities stalking the corridors.",
+        description_ru: "Уровень 2 состоит из тёмных, давящих клаустрофобией технических туннелей, тянущихся на миллионы миль. Стены увешаны ржавыми трубами с кипящим паром и вязким чёрным мазутом, из-за чего температура воздуха превышает 43°C, а в глубинных секторах достигает 60°C. Большинство дверей заперты или ведут в тупиковые бойлерные. Оглушительное шипение прорванных клапанов полностью заглушает шаги многочисленных монстров.",
         entities: ["smiler", "clump", "hound", "skin-stealer"]
       },
       {
         id: "level-4",
         code: "LEVEL 4",
         name: "Level 4 — \"Abandoned Office\"",
+        name_ru: "Уровень 4 — «Заброшенный офис»",
         danger: "SAFE",
         survivalRate: "94%",
         classInfo: "Class 0 // M.E.G. Bastion Sector",
+        subtitle_ru: "Класс 0 // Опорный бастион Б.И.Г.",
+        biome: "Empty Modern Office Complex",
+        biome_ru: "Пустующий современный офисный центр",
+        exits: "Stairwells occasionally transition to Level 1 or ceramic-tiled corridors leading to Level 37.",
+        exits_ru: "Лестничные пролёты ведут на Уровень 1 или в кафельные переходы к Уровню 37.",
         image: "images/level-4.jpg",
         shortDesc: "An empty, quiet office building largely devoid of threats and rich in Almond Water.",
+        shortDesc_ru: "Тихое пустое офисное здание, практически лишённое угроз и богатое автоматами с Миндальной водой.",
         description: "Level 4 resembles an empty, modern office building almost completely stripped of furniture save for occasional cubicles, water coolers, and vending machines filled with Almond Water. It is considered the safest crossroads for newly arrived wanderers to recover psychologically. Though windows line the exterior walls, they are darkened by simulated heavy rain—wanderers are strictly advised never to approach windows that appear clear or open.",
+        description_ru: "Уровень 4 напоминает современное офисное здание, почти полностью лишённое мебели, за исключением редких перегородок, кулеров и торговых автоматов, заполненных Миндальной водой. Это самое безопасное место для отдыха и восстановления рассудка. Хотя вдоль стен расположены окна, за ними всегда идёт густой искусственный ливень — странникам категорически запрещено приближаться к окнам, которые выглядят чистыми или открытыми.",
         entities: ["hound"]
       },
       {
         id: "level-37",
         code: "LEVEL 37",
         name: "Level 37 — \"Sublimity\" (The Poolrooms)",
+        name_ru: "Уровень 37 — «Безмятежность» (Бассейны)",
         danger: "UNSTABLE",
         survivalRate: "76%",
         classInfo: "Class 2 // Acoustic & Biohazard Anomaly",
+        subtitle_ru: "Класс 2 // Акустическая и био-аномалия",
+        biome: "Infinite Ceramic-Tiled Flooded Halls",
+        biome_ru: "Бесконечные кафельные залы с тёплой водой",
+        exits: "Dry tiled maintenance tunnels lead back to Level 4; deep underwater drains lead to dark levels.",
+        exits_ru: "Сухие кафельные переходы ведут обратно на Уровень 4; глубоководные сливы затягивают в тёмные уровни.",
         image: "images/level-37.jpg",
         shortDesc: "A serene complex of interconnected ceramic-tiled rooms submerged in lukewarm turquoise water.",
+        shortDesc_ru: "Умиротворяющий комплекс облицованных белой плиткой залов, залитых тёплой бирюзовой водой.",
         description: "Commonly referred to as 'The Poolrooms', Level 37 is a vast complex of interconnected rooms and corridors completely clad in pristine white and pastel ceramic tiles, partially submerged in lukewarm, crystal-clear water. Sound behaves anomalously here: voices and splashes are muffled almost immediately, inducing a hypnotic sense of tranquility. While daylight-lit zones are free of predators, explorers must avoid descending into the unlit abyssal drains where the Hydrolitis Plague festers.",
+        description_ru: "Известный как «Poolrooms» (Бассейны), Уровень 37 представляет собой гигантский комплекс залов, колоннад и переходов, облицованных чистейшей белой и пастельной плиткой и залитых по пояс тёплой прозрачной водой. Звук ведёт себя здесь аномально: эхо и плеск воды мгновенно гасятся, вызывая гипнотическое чувство покоя. Освещённые зоны безопасны, но странникам нельзя спускаться в тёмные затопленные коллекторы, где свирепствует Гидролитовая чума.",
         entities: ["hydrolitis"]
       },
       {
         id: "level-9",
         code: "LEVEL 9",
         name: "Level 9 — \"The Darkened Suburbs\"",
+        name_ru: "Уровень 9 — «Потемневший пригород»",
         danger: "DANGEROUS",
         survivalRate: "24%",
         classInfo: "Class 4 // Perpetual Midnight",
+        subtitle_ru: "Класс 4 // Вечная полночь и туман",
+        biome: "Infinite Foggy Midnight Suburban Streets",
+        biome_ru: "Бесконечные ночные улицы пригорода в тумане",
+        exits: "Entering illuminated power-grid substations or no-clipping through asphalt leads to safer sectors.",
+        exits_ru: "Переход через трансформаторные подстанции или провал сквозь мокрый асфальт выводит в другие секторы.",
         image: "images/level-9.jpg",
         shortDesc: "An infinite suburban neighborhood trapped in perpetual midnight fog and patrolled by anomalies.",
+        shortDesc_ru: "Бесконечный жилой пригород, застрявший в вечной полночной мгле и патрулируемый опасными аномалиями.",
         description: "Level 9 is an infinite suburban neighborhood trapped in perpetual midnight, blanketed in wet asphalt and unnatural fog. The houses are furnished as if evacuated seconds prior, often featuring working power grids that flicker erratically. Staying on the open street under working streetlights is fatal; wanderers must move stealthily through backyards and abandoned garages to evade the dense concentration of entities prowling the sidewalks.",
+        description_ru: "Уровень 9 — это бесконечный пригородный район, погружённый в вечную полночь, мокрый асфальт и густой неестественный туман. Дома обставлены мебелью так, словно жильцы исчезли секунду назад, а электросеть хаотично мигает. Оставаться на открытой дороге под светом уличных фонарей смертельно опасно: странникам приходится красться через задние дворы и гаражи, чтобы избежать стай монстров на тротуарах.",
         entities: ["smiler", "skin-stealer", "hound"]
       },
       {
         id: "level-run",
         code: "LEVEL !",
         name: "Level ! — \"Run For Your Life!\"",
+        name_ru: "Уровень ! — «Беги ради жизни!»",
         danger: "DEADLY",
         survivalRate: "1.2%",
         classInfo: "Class Deadzone // 10 KM Hospital Sprint",
+        subtitle_ru: "Класс Мёртвая зона // 10-километровый спринт",
+        biome: "Infinite Red-Siren Hospital Corridor",
+        biome_ru: "Бесконечный больничный коридор под вой сирен",
+        exits: "Surviving the 10-kilometer sprint and bursting through the exit double-doors returns you to a safe level.",
+        exits_ru: "Преодоление 10-километрового марафона и рывок в двустворчатые двери с надписью EXIT возвращает на безопасный уровень.",
         image: "images/level-run.jpg",
         shortDesc: "A ten-kilometer hospital corridor bathed in blaring red sirens and a relentless horde behind you.",
+        shortDesc_ru: "Десятикилометровый больничный коридор в багровом свете аварийных сирен с неумолимой ордой монстров за спиной.",
         description: "Level ! consists of an infinitely long, narrow hospital hallway bathed in flashing red emergency lights and deafening klaxon alarms. The instant a wanderer manifests here, a massive horde of hundreds of entities bursts through the doors directly behind them. The only known method of survival is an uninterrupted 10-kilometer sprint forward while dodging overturned gurneys, hospital beds, and debris until reaching the exit door at the end of the corridor.",
+        description_ru: "Уровень ! представляет собой узкий больничный коридор длиной в десять километров, залитый пульсирующим красным светом аварийных маячков и оглушительным воем сирен. В ту же секунду, как странник попадает сюда, двери позади него вышибает гигантская лавина из сотен разъярённых сущностей. Единственный шанс выжить — безостановочный 10-километровый бег вперёд с преодолением перевёрнутых каталок, коек и баррикад до спасительной двери EXIT.",
         entities: ["smiler", "hound", "skin-stealer", "clump", "partygoer"]
       },
       {
         id: "level-fun",
         code: "LEVEL FUN",
         name: "Level Fun — \"The Party Rooms\" =)",
+        name_ru: "Уровень Веселья — «Комнаты вечеринок» =)",
         danger: "HOSTILE",
         survivalRate: "4.5%",
         classInfo: "Class 5 // Compromised Hive Sector",
+        subtitle_ru: "Класс 5 // Заражённый сектор-улей",
+        biome: "1990s Children's Play Center & Hive",
+        biome_ru: "Детский развлекательный центр 90-х и улей",
+        exits: "Extremely rare maintenance hatches behind arcade machines can lead back to Level 1.",
+        exits_ru: "Крайне редкие технические люки за игровыми автоматами позволяют выбраться обратно на Уровень 1.",
         image: "images/level-fun.jpg",
         shortDesc: "A brightly decorated children's entertainment center serving as the primary hive of the Partygoers.",
+        shortDesc_ru: "Ярко украшенный детский развлекательный центр, служащий главным гнездом и охотничьим угодьем Тусовщиков.",
         description: "Despite frequent attempts by the Partygoers to overwrite this database entry with invitations to a 'harmless celebration =)', M.E.G. High Command classifies Level Fun as an extreme Hostile Hive. The environment resembles a nostalgic 1990s children's birthday parlor complete with plastic play-tubes, confetti, and distorted calliope music playing over intercoms. Entry into this level via no-clipping under tables in Level 1 or Level 0 is considered almost impossible to escape.",
+        description_ru: "Несмотря на постоянные хакерские попытки Тусовщиков переписать эту страницу приглашениями на «безопасный праздник с тортиками =)», командование Б.И.Г. классифицирует Уровень Веселья как смертельно опасный Улей. Помещения выглядят как детский развлекательный центр из 1990-х с пластиковыми лабиринтами, конфетти и искажённой шарманкой из динамиков. Попадание сюда почти не оставляет шансов на возвращение.",
         entities: ["partygoer"]
       }
     ];
@@ -454,12 +699,28 @@
     // MAIN APPLICATION COMPONENT
     // ============================================================================
     function App() {
+      const [lang, setLang] = useState(() => {
+        try {
+          return localStorage.getItem("meg_archive_lang") || "en";
+        } catch (e) {
+          return "en";
+        }
+      });
       const [selectedDanger, setSelectedDanger] = useState("ALL");
       const [searchQuery, setSearchQuery] = useState("");
       const [activeLevel, setActiveLevel] = useState(null);
       const [activeEntity, setActiveEntity] = useState(null);
       const [entityFitMode, setEntityFitMode] = useState("cover");
-      const [clock, setClock] = useState("00:00:00 UTC");
+      const [clock, setClock] = useState("00:00:00 LOCAL");
+
+      const t = UI_TEXT[lang] || UI_TEXT.en;
+
+      const toggleLang = (nextLang) => {
+        setLang(nextLang);
+        try {
+          localStorage.setItem("meg_archive_lang", nextLang);
+        } catch (e) {}
+      };
 
       // Reset fit mode whenever a new entity is opened
       useEffect(() => {
@@ -468,11 +729,18 @@
         }
       }, [activeEntity]);
 
-      // Terminal live clock
+      // Terminal live clock using exact user local system time (fixes 3-hour UTC offset)
       useEffect(() => {
+        const pad = (n) => String(n).padStart(2, "0");
         const updateClock = () => {
           const now = new Date();
-          setClock(now.toISOString().replace('T', ' ').substring(0, 19) + ' // SYNC');
+          const yyyy = now.getFullYear();
+          const mm = pad(now.getMonth() + 1);
+          const dd = pad(now.getDate());
+          const hh = pad(now.getHours());
+          const min = pad(now.getMinutes());
+          const ss = pad(now.getSeconds());
+          setClock(`${yyyy}-${mm}-${dd} ${hh}:${min}:${ss} // LOCAL`);
         };
         updateClock();
         const interval = setInterval(updateClock, 1000);
@@ -494,14 +762,20 @@
         return () => window.removeEventListener("keydown", handleKeyDown);
       }, [activeLevel, activeEntity]);
 
-      // Filtered levels based on category button & search input
+      // Filtered levels based on category button & bilingual search input (EN + RU)
       const filteredLevels = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
         return LEVELS.filter((lvl) => {
           const matchesDanger = selectedDanger === "ALL" || lvl.danger === selectedDanger;
+          if (!q) return matchesDanger;
           const matchesQuery =
-            lvl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lvl.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lvl.code.toLowerCase().includes(searchQuery.toLowerCase());
+            lvl.name.toLowerCase().includes(q) ||
+            (lvl.name_ru && lvl.name_ru.toLowerCase().includes(q)) ||
+            lvl.description.toLowerCase().includes(q) ||
+            (lvl.description_ru && lvl.description_ru.toLowerCase().includes(q)) ||
+            lvl.shortDesc.toLowerCase().includes(q) ||
+            (lvl.shortDesc_ru && lvl.shortDesc_ru.toLowerCase().includes(q)) ||
+            lvl.code.toLowerCase().includes(q);
           return matchesDanger && matchesQuery;
         });
       }, [selectedDanger, searchQuery]);
@@ -518,21 +792,50 @@
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-400/10 border border-amber-400/40 text-amber-400 font-bold">
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                  M.E.G. ARCHIVE_OS v4.09
+                  {t.osVersion}
                 </span>
-                <span className="hidden md:inline text-zinc-500">CLEARANCE: LEVEL-4 [OVERSEER]</span>
+                <span className="hidden lg:inline text-zinc-500">{t.clearance}</span>
               </div>
-              <div className="flex items-center gap-4 text-zinc-400">
-                <span className="hidden sm:inline text-amber-400/80">{clock}</span>
+
+              <div className="flex items-center gap-3 sm:gap-4 text-zinc-400">
+                <span className="hidden sm:inline text-amber-400/90 font-mono">{clock}</span>
+
                 <button
                   onClick={() => {
                     const el = document.getElementById("entities-codex");
                     if (el) el.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors"
+                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden md:inline"
                 >
-                  [ENTITY_INDEX: {ENTITIES.length}]
+                  [{t.entityIndexBtn}: {ENTITIES.length}]
                 </button>
+
+                {/* LANGUAGE SWITCHER [EN | RU] */}
+                <div className="inline-flex items-center bg-zinc-950 border border-amber-400/50 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleLang("en")}
+                    className={`px-2 py-0.5 text-[11px] font-bold tracking-widest transition-colors ${
+                      lang === "en"
+                        ? "bg-amber-400 text-black"
+                        : "text-zinc-400 hover:text-amber-300"
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <span className="text-zinc-700 px-0.5">|</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleLang("ru")}
+                    className={`px-2 py-0.5 text-[11px] font-bold tracking-widest transition-colors ${
+                      lang === "ru"
+                        ? "bg-amber-400 text-black"
+                        : "text-zinc-400 hover:text-amber-300"
+                    }`}
+                  >
+                    RU
+                  </button>
+                </div>
               </div>
             </div>
           </header>
@@ -553,39 +856,38 @@
             <div className="relative max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-24 lg:py-28">
               <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1 mb-5 bg-zinc-900/90 border border-amber-500/40 text-amber-400 text-xs uppercase tracking-[0.2em]">
-                  <span>// NON-EUCLIDEAN DATABASE TERMINAL</span>
+                  <span>{t.heroBadge}</span>
                 </div>
                 
                 <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl font-bold tracking-wider text-white uppercase glow-text leading-none mb-4">
-                  THE BACKROOMS <span className="text-amber-400">ARCHIVE</span>
+                  {t.heroTitle1} <span className="text-amber-400">{t.heroTitle2}</span>
                 </h1>
                 
                 <p className="text-lg sm:text-2xl text-amber-400/90 font-semibold tracking-[0.25em] uppercase mb-6">
-                  Survive. Document. Archive.
+                  {t.heroSubtitle}
                 </p>
 
                 <p className="text-zinc-400 text-sm sm:text-base leading-relaxed max-w-2xl border-l-2 border-amber-400/60 pl-4 mb-8">
-                  If you are not careful and you no-clip out of reality in the wrong areas, you will end up in the Backrooms. 
-                  This terminal aggregates verified spatial cartography, environmental hazards, and hostile biological entities documented by wandering operatives.
+                  {t.heroDesc}
                 </p>
 
                 {/* Terminal Telemetry Mini-Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
-                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Documented Sectors</div>
-                    <div className="text-xl font-bold text-amber-400 mt-0.5">{LEVELS.length} LEVELS</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statLevelsLabel}</div>
+                    <div className="text-xl font-bold text-amber-400 mt-0.5">{LEVELS.length} {t.statLevelsUnit}</div>
                   </div>
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
-                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Cataloged Threats</div>
-                    <div className="text-xl font-bold text-red-400 mt-0.5">{ENTITIES.length} ENTITIES</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statEntitiesLabel}</div>
+                    <div className="text-xl font-bold text-red-400 mt-0.5">{ENTITIES.length} {t.statEntitiesUnit}</div>
                   </div>
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
-                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Acoustic Hum</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statHumLabel}</div>
                     <div className="text-xl font-bold text-zinc-200 mt-0.5">60.0 Hz</div>
                   </div>
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
-                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Reality Anchor</div>
-                    <div className="text-xl font-bold text-emerald-400 mt-0.5">ONLINE</div>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statAnchorLabel}</div>
+                    <div className="text-xl font-bold text-emerald-400 mt-0.5">{t.statAnchorVal}</div>
                   </div>
                 </div>
               </div>
@@ -600,10 +902,10 @@
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-800 pb-4">
                 <div>
                   <div className="text-xs text-amber-400 tracking-[0.2em] uppercase mb-1">
-                    // DIRECTORY_QUERY_MODULE
+                    {t.filterSub}
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-wider uppercase text-white">
-                    SECTOR CLASSIFICATION FILTER
+                    {t.filterTitle}
                   </h2>
                 </div>
 
@@ -613,7 +915,7 @@
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="SEARCH LEVEL OR KEYWORD..."
+                    placeholder={t.searchPlaceholder}
                     className="w-full bg-zinc-950 border border-zinc-700 focus:border-amber-400 px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none tracking-wider uppercase"
                   />
                   {searchQuery && (
@@ -621,7 +923,7 @@
                       onClick={() => setSearchQuery("")}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-amber-400"
                     >
-                      [CLR]
+                      {t.clearBtn}
                     </button>
                   )}
                 </div>
@@ -637,7 +939,7 @@
                       : "bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-amber-400/60 hover:text-amber-300"
                   }`}
                 >
-                  [ALL SECTORS: {LEVELS.length}]
+                  [{t.allSectorsBtn}: {LEVELS.length}]
                 </button>
 
                 {DANGER_CATEGORIES.map((category) => {
@@ -660,7 +962,7 @@
                           isActive ? "bg-current" : style.dot
                         }`}
                       />
-                      <span>{category}</span>
+                      <span>{t.dangerLabels[category]}</span>
                       <span className="opacity-70 text-[11px]">({count})</span>
                     </button>
                   );
@@ -673,10 +975,10 @@
               {filteredLevels.length === 0 ? (
                 <div className="terminal-box p-12 text-center border-dashed border-zinc-800">
                   <p className="text-amber-400 text-sm tracking-widest uppercase mb-2">
-                    // ZERO RECORDS MATCHING FILTER CRITERIA
+                    {t.zeroRecordsTitle}
                   </p>
                   <p className="text-zinc-500 text-xs mb-6">
-                    The requested sector either does not exist or has been expunged from M.E.G. servers.
+                    {t.zeroRecordsSub}
                   </p>
                   <button
                     onClick={() => {
@@ -685,13 +987,17 @@
                     }}
                     className="px-4 py-2 bg-amber-400 text-black text-xs font-bold uppercase tracking-widest hover:bg-amber-300"
                   >
-                    [RESET FILTER PARAMETERS]
+                    {t.resetFilterBtn}
                   </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredLevels.map((level) => {
                     const dangerStyle = DANGER_STYLES[level.danger];
+                    const levelName = lang === "ru" ? level.name_ru : level.name;
+                    const levelClassInfo = lang === "ru" ? level.subtitle_ru : level.classInfo;
+                    const levelShortDesc = lang === "ru" ? level.shortDesc_ru : level.shortDesc;
+
                     return (
                       <article
                         key={level.id}
@@ -703,9 +1009,9 @@
                           <div className="relative h-48 w-full overflow-hidden bg-zinc-950 border-b border-zinc-800">
                             <ArchiveImage
                               src={level.image}
-                              alt={level.name}
+                              alt={levelName}
                               fallbackTitle={level.code}
-                              fallbackSubtitle={level.name}
+                              fallbackSubtitle={levelName}
                               accentColor="#f5be0b"
                               style={{ objectPosition: level.imagePosition || "center center" }}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
@@ -721,16 +1027,16 @@
                             <span
                               className={`absolute top-3 right-3 px-2.5 py-0.5 border text-[11px] font-bold tracking-widest uppercase ${dangerStyle.badge}`}
                             >
-                              {level.danger}
+                              {t.dangerLabels[level.danger]}
                             </span>
 
                             {/* Bottom Survival Rate Overlay */}
                             <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-zinc-300 font-mono">
                               <span className="bg-black/70 px-2 py-0.5 border border-zinc-800">
-                                SURVIVAL: <strong className="text-amber-400">{level.survivalRate}</strong>
+                                {t.cardSurvival}: <strong className="text-amber-400">{level.survivalRate}</strong>
                               </span>
                               <span className="bg-black/70 px-2 py-0.5 border border-zinc-800 text-zinc-400">
-                                ENTITIES: {level.entities.length}
+                                {t.cardEntities}: {level.entities.length}
                               </span>
                             </div>
                           </div>
@@ -738,13 +1044,13 @@
                           {/* Card Body */}
                           <div className="p-5">
                             <div className="text-[11px] text-zinc-500 uppercase tracking-widest mb-1">
-                              {level.classInfo}
+                              {levelClassInfo}
                             </div>
                             <h3 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors tracking-wide mb-2.5">
-                              {level.name}
+                              {levelName}
                             </h3>
                             <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed line-clamp-3">
-                              {level.shortDesc}
+                              {levelShortDesc}
                             </p>
                           </div>
                         </div>
@@ -752,10 +1058,10 @@
                         {/* Card Footer */}
                         <div className="px-5 py-3 bg-zinc-950/70 border-t border-zinc-800/80 flex items-center justify-between text-xs">
                           <span className="text-zinc-500 uppercase tracking-wider">
-                            FILE_ID: #{level.id.toUpperCase()}
+                            {t.cardFileId}: #{level.id.toUpperCase()}
                           </span>
                           <span className="text-amber-400 font-bold tracking-widest group-hover:translate-x-1 transition-transform">
-                            ACCESS DOSSIER &rarr;
+                            {t.cardAccess} &rarr;
                           </span>
                         </div>
                       </article>
@@ -770,48 +1076,54 @@
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
                 <div>
                   <div className="text-xs text-red-400 tracking-[0.2em] uppercase mb-1">
-                    // BIOLOGICAL_THREAT_REGISTRY
+                    {t.codexSub}
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-wider uppercase text-white">
-                    DOCUMENTED ENTITIES ({ENTITIES.length})
+                    {t.codexTitle} ({ENTITIES.length})
                   </h2>
                 </div>
                 <p className="text-xs text-zinc-500">
-                  Click any entity below or inside a Level Dossier to inspect biological threat data.
+                  {t.codexHint}
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                {ENTITIES.map((ent) => (
-                  <button
-                    key={ent.id}
-                    onClick={() => setActiveEntity(ent)}
-                    className="text-left p-3 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-center gap-3.5"
-                  >
-                    <div className="w-14 h-14 shrink-0 bg-zinc-900 border border-zinc-800 overflow-hidden">
-                      <ArchiveImage
-                        src={ent.image}
-                        alt={ent.name}
-                        fallbackTitle={ent.name}
-                        fallbackSubtitle={ent.threatLevel}
-                        accentColor="#ef4444"
-                        style={{ objectPosition: ent.imagePosition || "center top" }}
-                        className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold truncate">
-                        {ent.threatLevel} THREAT
+                {ENTITIES.map((ent) => {
+                  const entName = lang === "ru" ? ent.name_ru : ent.name;
+                  const entThreat = lang === "ru" ? ent.threat_ru : ent.threatLevel;
+                  const entHabitat = lang === "ru" ? ent.habitat_ru : ent.habitat;
+
+                  return (
+                    <button
+                      key={ent.id}
+                      onClick={() => setActiveEntity(ent)}
+                      className="text-left p-3 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-center gap-3.5"
+                    >
+                      <div className="w-14 h-14 shrink-0 bg-zinc-900 border border-zinc-800 overflow-hidden">
+                        <ArchiveImage
+                          src={ent.image}
+                          alt={entName}
+                          fallbackTitle={entName}
+                          fallbackSubtitle={entThreat}
+                          accentColor="#ef4444"
+                          style={{ objectPosition: ent.imagePosition || "center top" }}
+                          className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
+                        />
                       </div>
-                      <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5 truncate">
-                        {ent.name}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold truncate">
+                          {entThreat} {t.threatSuffix}
+                        </div>
+                        <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5 truncate">
+                          {entName}
+                        </div>
+                        <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                          {entHabitat}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
-                        {ent.habitat}
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </section>
           </main>
@@ -820,10 +1132,10 @@
           <footer className="border-t border-zinc-800 bg-[#050507] px-4 sm:px-8 py-8 mt-12">
             <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
               <div>
-                <span className="text-amber-400 font-bold">THE BACKROOMS ARCHIVE</span> // MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL
+                <span className="text-amber-400 font-bold">{t.heroTitle1} {t.heroTitle2}</span> // {t.footerLeft}
               </div>
               <div className="text-center sm:text-right text-zinc-600">
-                ENCRYPTED CONNECTION // NO-CLIP TELEMETRY SYNCHRONIZED
+                {t.footerRight}
               </div>
             </div>
           </footer>
@@ -843,13 +1155,13 @@
                 {/* Modal Top Terminal Bar */}
                 <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-zinc-950 border-b border-zinc-800">
                   <div className="flex items-center gap-2 text-xs text-amber-400 font-bold tracking-widest uppercase">
-                    <span>// SECTOR DOSSIER: {activeLevel.code}</span>
+                    <span>{t.modalSectorDossier}: {activeLevel.code}</span>
                   </div>
                   <button
                     onClick={() => setActiveLevel(null)}
                     className="px-2.5 py-1 bg-zinc-900 hover:bg-amber-400 hover:text-black text-zinc-300 border border-zinc-700 text-xs font-bold tracking-widest transition-colors"
                   >
-                    [ESC / CLOSE X]
+                    {t.modalCloseEsc}
                   </button>
                 </div>
 
@@ -859,9 +1171,9 @@
                   <div className="relative h-56 sm:h-72 w-full bg-zinc-950 border border-zinc-800 overflow-hidden">
                     <ArchiveImage
                       src={activeLevel.image}
-                      alt={activeLevel.name}
+                      alt={lang === "ru" ? activeLevel.name_ru : activeLevel.name}
                       fallbackTitle={activeLevel.code}
-                      fallbackSubtitle={activeLevel.name}
+                      fallbackSubtitle={lang === "ru" ? activeLevel.name_ru : activeLevel.name}
                       accentColor="#f5be0b"
                       style={{ objectPosition: activeLevel.imagePosition || "center center" }}
                       className="w-full h-full object-cover"
@@ -871,10 +1183,10 @@
                     <div className="absolute bottom-3 left-4 right-4 flex flex-wrap items-end justify-between gap-2">
                       <div>
                         <span className="text-xs text-amber-400 uppercase tracking-widest block">
-                          {activeLevel.classInfo}
+                          {lang === "ru" ? activeLevel.subtitle_ru : activeLevel.classInfo}
                         </span>
                         <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wide">
-                          {activeLevel.name}
+                          {lang === "ru" ? activeLevel.name_ru : activeLevel.name}
                         </h2>
                       </div>
                       <span
@@ -882,7 +1194,7 @@
                           DANGER_STYLES[activeLevel.danger].badge
                         }`}
                       >
-                        DANGER: {activeLevel.danger}
+                        {t.modalDangerPrefix}: {t.dangerLabels[activeLevel.danger]}
                       </span>
                     </div>
                   </div>
@@ -890,7 +1202,7 @@
                   {/* Survival Rate Meter */}
                   <div className="bg-zinc-950 border border-zinc-800 p-4">
                     <div className="flex items-center justify-between text-xs uppercase tracking-widest mb-2">
-                      <span className="text-zinc-400">ESTIMATED SURVIVAL PROBABILITY</span>
+                      <span className="text-zinc-400">{t.modalSurvivalProb}</span>
                       <span className="text-base font-bold text-amber-400">
                         {activeLevel.survivalRate}
                       </span>
@@ -905,13 +1217,33 @@
                     </div>
                   </div>
 
+                  {/* Biome & Exits Metadata Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-zinc-950/80 border border-zinc-800 p-3.5">
+                      <div className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mb-1">
+                        {t.modalBiomeLabel}
+                      </div>
+                      <div className="text-xs text-zinc-300">
+                        {lang === "ru" ? activeLevel.biome_ru : activeLevel.biome}
+                      </div>
+                    </div>
+                    <div className="bg-zinc-950/80 border border-zinc-800 p-3.5">
+                      <div className="text-[10px] text-amber-400 uppercase tracking-widest font-bold mb-1">
+                        {t.modalExitsLabel}
+                      </div>
+                      <div className="text-xs text-zinc-300">
+                        {lang === "ru" ? activeLevel.exits_ru : activeLevel.exits}
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Full Description */}
                   <div className="space-y-2">
                     <div className="text-xs text-amber-400 uppercase tracking-widest font-bold">
-                      // ENVIRONMENTAL_DESCRIPTION &amp; ANOMALOUS PROPERTIES
+                      {t.modalEnvDesc}
                     </div>
                     <p className="text-sm sm:text-base text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800/80 p-4">
-                      {activeLevel.description}
+                      {lang === "ru" ? activeLevel.description_ru : activeLevel.description}
                     </p>
                   </div>
 
@@ -919,10 +1251,10 @@
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-red-400 uppercase tracking-widest font-bold">
-                        // CONFIRMED HOSTILE ENTITIES IN THIS SECTOR ({activeLevel.entities.length})
+                        {t.modalConfirmedEntities} ({activeLevel.entities.length})
                       </span>
                       <span className="text-[11px] text-zinc-500">
-                        [CLICK ENTITY TO INSPECT]
+                        {t.modalClickEntityHint}
                       </span>
                     </div>
 
@@ -930,23 +1262,26 @@
                       {activeLevel.entities.map((entityId) => {
                         const entityObj = getEntityById(entityId);
                         if (!entityObj) return null;
+                        const entName = lang === "ru" ? entityObj.name_ru : entityObj.name;
+                        const entClass = lang === "ru" ? entityObj.classification_ru : entityObj.classification;
+
                         return (
                           <button
                             key={entityObj.id}
                             onClick={() => setActiveEntity(entityObj)}
                             className="flex items-center justify-between p-3.5 bg-zinc-950 border border-zinc-800 hover:border-red-500 text-left group transition-all"
                           >
-                            <div>
+                            <div className="pr-2">
                               <div className="text-xs font-bold text-red-400 group-hover:text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                {entityObj.name}
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                                <span>{entName}</span>
                               </div>
                               <div className="text-[11px] text-zinc-500 mt-0.5">
-                                {entityObj.classification}
+                                {entClass}
                               </div>
                             </div>
-                            <span className="text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
-                              [FILE &rarr;]
+                            <span className="text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform shrink-0">
+                              {t.modalFileBtn}
                             </span>
                           </button>
                         );
@@ -957,12 +1292,12 @@
 
                 {/* Modal Footer */}
                 <div className="px-4 sm:px-6 py-3 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
-                  <span>ARCHIVE LOG // VERIFIED BY M.E.G. CARTOGRAPHY</span>
+                  <span>{t.modalFooterVerified}</span>
                   <button
                     onClick={() => setActiveLevel(null)}
                     className="text-amber-400 hover:underline font-bold uppercase tracking-wider"
                   >
-                    [CLOSE DOSSIER]
+                    {t.modalCloseDossier}
                   </button>
                 </div>
               </div>
@@ -979,31 +1314,31 @@
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full max-w-xl bg-[#0e0a0b] border-2 border-red-500/80 shadow-[0_0_60px_rgba(220,38,38,0.25)] overflow-hidden my-auto"
+                className="relative w-full max-w-xl bg-[#0e0a0b] border-2 border-red-500/80 shadow-[0_0_60px_rgba(220,38,38,0.25)] overflow-hidden my-auto max-h-[92vh] flex flex-col"
               >
                 {/* Entity Header */}
                 <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-red-950/40 border-b border-red-900/60">
                   <div className="flex items-center gap-2 text-xs text-red-400 font-bold tracking-widest uppercase">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                    <span>// BIOLOGICAL THREAT FILE</span>
+                    <span>{t.entityModalHeader}</span>
                   </div>
                   <button
                     onClick={() => setActiveEntity(null)}
                     className="px-2.5 py-1 bg-zinc-900 hover:bg-red-500 hover:text-black text-zinc-200 border border-red-500/50 text-xs font-bold tracking-widest transition-colors"
                   >
-                    [RETURN / X]
+                    {t.entityModalReturn}
                   </button>
                 </div>
 
                 {/* Entity Content */}
-                <div className="p-4 sm:p-6 space-y-5">
+                <div className="overflow-y-auto p-4 sm:p-6 space-y-5">
                   {/* Monster Image */}
                   <div className="relative h-64 sm:h-80 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
                     <ArchiveImage
                       src={activeEntity.image}
-                      alt={activeEntity.name}
-                      fallbackTitle={activeEntity.name}
-                      fallbackSubtitle={activeEntity.classification}
+                      alt={lang === "ru" ? activeEntity.name_ru : activeEntity.name}
+                      fallbackTitle={lang === "ru" ? activeEntity.name_ru : activeEntity.name}
+                      fallbackSubtitle={lang === "ru" ? activeEntity.classification_ru : activeEntity.classification}
                       accentColor="#ef4444"
                       style={{
                         objectPosition:
@@ -1021,42 +1356,54 @@
                       onClick={() => setEntityFitMode((prev) => (prev === "cover" ? "contain" : "cover"))}
                       className="absolute top-3 left-3 px-2.5 py-1 bg-black/85 hover:bg-amber-400 hover:text-black border border-zinc-700 text-amber-400 text-[10px] font-bold tracking-widest uppercase transition-colors"
                     >
-                      [{entityFitMode === "cover" ? "FULL FRAME" : "CROP VIEW"}]
+                      [{entityFitMode === "cover" ? t.entityFullFrame : t.entityCropView}]
                     </button>
                     <span className="absolute top-3 right-3 px-2.5 py-1 bg-red-950/90 border border-red-500 text-red-300 text-[11px] font-bold tracking-widest uppercase">
-                      THREAT: {activeEntity.threatLevel}
+                      {t.entityThreatPrefix}: {lang === "ru" ? activeEntity.threat_ru : activeEntity.threatLevel}
                     </span>
                   </div>
 
                   {/* Entity Name & Metadata */}
                   <div>
                     <div className="text-xs text-red-400 uppercase tracking-widest font-bold">
-                      {activeEntity.classification}
+                      {lang === "ru" ? activeEntity.classification_ru : activeEntity.classification}
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-wide mt-1">
-                      {activeEntity.name}
+                      {lang === "ru" ? activeEntity.name_ru : activeEntity.name}
                     </h3>
                     <div className="text-xs text-zinc-400 mt-1">
-                      PRIMARY HABITAT: <span className="text-amber-400">{activeEntity.habitat}</span>
+                      {t.entityPrimaryHabitat}: <span className="text-amber-400">{lang === "ru" ? activeEntity.habitat_ru : activeEntity.habitat}</span>
                     </div>
                   </div>
 
                   {/* Entity Description */}
                   <div className="bg-zinc-950/90 border border-red-900/40 p-4">
                     <div className="text-[11px] text-red-400 uppercase tracking-widest font-bold mb-1.5">
-                      // FIELD OBSERVATIONS &amp; COUNTERMEASURES
+                      {t.entityFieldObs}
                     </div>
                     <p className="text-sm text-zinc-300 leading-relaxed">
-                      {activeEntity.description}
+                      {lang === "ru" ? activeEntity.description_ru : activeEntity.description}
                     </p>
                   </div>
+
+                  {/* Entity Survival Protocol */}
+                  {(activeEntity.survivalTip || activeEntity.survivalTip_ru) && (
+                    <div className="bg-amber-950/20 border border-amber-500/40 p-3.5">
+                      <div className="text-[11px] text-amber-400 uppercase tracking-widest font-bold mb-1">
+                        {t.entitySurvivalProtocol}
+                      </div>
+                      <p className="text-xs sm:text-sm text-amber-200/90 leading-relaxed">
+                        {lang === "ru" ? activeEntity.survivalTip_ru : activeEntity.survivalTip}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex justify-end">
                     <button
                       onClick={() => setActiveEntity(null)}
                       className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest transition-colors"
                     >
-                      [ACKNOWLEDGE &amp; CLOSE FILE]
+                      {t.entityAckClose}
                     </button>
                   </div>
                 </div>
