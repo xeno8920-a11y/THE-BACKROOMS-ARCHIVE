@@ -169,6 +169,42 @@
     const { useState, useEffect, useMemo } = React;
 
     // ============================================================================
+    // TERMINAL FALLBACK GENERATOR & SMART EXTENSION LOADER
+    // ============================================================================
+    function createTerminalPlaceholder(title, subtitle, accentColor = "#f5be0b", bgColor = "#14120a") {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+        <rect width="800" height="500" fill="${bgColor}"/>
+        <g stroke="${accentColor}" stroke-opacity="0.12" stroke-width="1">
+          <line x1="0" y1="100" x2="800" y2="100"/><line x1="0" y1="200" x2="800" y2="200"/>
+          <line x1="0" y1="300" x2="800" y2="300"/><line x1="0" y1="400" x2="800" y2="400"/>
+          <line x1="160" y1="0" x2="160" y2="500"/><line x1="320" y1="0" x2="320" y2="500"/>
+          <line x1="480" y1="0" x2="480" y2="500"/><line x1="640" y1="0" x2="640" y2="500"/>
+        </g>
+        <rect x="24" y="24" width="752" height="452" fill="none" stroke="${accentColor}" stroke-opacity="0.4" stroke-width="2"/>
+        <text x="400" y="235" text-anchor="middle" fill="${accentColor}" font-family="monospace" font-size="28" font-weight="bold" letter-spacing="3">${title}</text>
+        <text x="400" y="275" text-anchor="middle" fill="#a1a1aa" font-family="monospace" font-size="14" letter-spacing="2">${subtitle}</text>
+      </svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    }
+
+    // Automatically tries .png, .webp, .jpeg if .jpg isn't found before using fallback
+    function handleSmartImageError(e, fallbackUrl) {
+      const img = e.currentTarget;
+      const exts = ['.png', '.webp', '.jpeg', '.JPG', '.PNG'];
+      const step = parseInt(img.dataset.extStep || '0', 10);
+      const baseSrc = img.dataset.baseSrc || img.getAttribute('src').replace(/\.[^/.]+$/, "");
+      img.dataset.baseSrc = baseSrc;
+
+      if (step < exts.length) {
+        img.dataset.extStep = String(step + 1);
+        img.src = baseSrc + exts[step];
+      } else {
+        img.onerror = null;
+        img.src = fallbackUrl;
+      }
+    }
+
+    // ============================================================================
     // HERO BACKGROUND IMAGE URL
     // Put your hero image inside the "images" folder next to index.html
     // ============================================================================
@@ -490,10 +526,7 @@
             {/* Hero Background Image with Dark Gradient Overlay & Automatic Fallback */}
             <img
               src={HERO_BG_URL}
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = HERO_FALLBACK_URL;
-              }}
+              onError={(e) => handleSmartImageError(e, HERO_FALLBACK_URL)}
               alt="Backrooms Hero Background"
               className="absolute inset-0 w-full h-full object-cover object-center opacity-35 scale-105 transition-transform duration-1000 pointer-events-none"
             />
@@ -652,10 +685,7 @@
                           <div className="relative h-48 w-full overflow-hidden bg-zinc-950 border-b border-zinc-800">
                             <img
                               src={level.image}
-                              onError={(e) => {
-                                e.currentTarget.onerror = null;
-                                e.currentTarget.src = level.fallbackImage;
-                              }}
+                              onError={(e) => handleSmartImageError(e, level.fallbackImage)}
                               alt={level.name}
                               className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
                             />
@@ -735,22 +765,27 @@
                   <button
                     key={ent.id}
                     onClick={() => setActiveEntity(ent)}
-                    className="text-left p-3.5 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-start justify-between gap-3"
+                    className="text-left p-3 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-center gap-3.5"
                   >
-                    <div>
-                      <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold">
+                    <div className="w-14 h-14 shrink-0 bg-zinc-900 border border-zinc-800 overflow-hidden">
+                      <img
+                        src={ent.image}
+                        onError={(e) => handleSmartImageError(e, ent.fallbackImage)}
+                        alt={ent.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold truncate">
                         {ent.threatLevel} THREAT
                       </div>
-                      <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5">
+                      <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5 truncate">
                         {ent.name}
                       </div>
-                      <div className="text-[11px] text-zinc-500 mt-1">
-                        Habitat: {ent.habitat}
+                      <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                        {ent.habitat}
                       </div>
                     </div>
-                    <span className="text-xs text-zinc-600 group-hover:text-red-400 font-bold">
-                      [OPEN]
-                    </span>
                   </button>
                 ))}
               </div>
@@ -763,8 +798,8 @@
               <div>
                 <span className="text-amber-400 font-bold">THE BACKROOMS ARCHIVE</span> // MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL
               </div>
-              <div className="text-center sm:text-right">
-                TIP: TO REPLACE IMAGES WITH CUSTOM URLS, EDIT <code className="text-amber-400">HERO_BG_URL</code>, <code className="text-amber-400">LEVELS</code> &amp; <code className="text-amber-400">ENTITIES</code> IN <code className="text-zinc-300">index.html</code>
+              <div className="text-center sm:text-right text-zinc-600">
+                ENCRYPTED CONNECTION // NO-CLIP TELEMETRY SYNCHRONIZED
               </div>
             </div>
           </footer>
@@ -800,10 +835,7 @@
                   <div className="relative h-56 sm:h-72 w-full bg-zinc-950 border border-zinc-800 overflow-hidden">
                     <img
                       src={activeLevel.image}
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = activeLevel.fallbackImage;
-                      }}
+                      onError={(e) => handleSmartImageError(e, activeLevel.fallbackImage)}
                       alt={activeLevel.name}
                       className="w-full h-full object-cover"
                     />
@@ -942,10 +974,7 @@
                   <div className="relative h-52 sm:h-60 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
                     <img
                       src={activeEntity.image}
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = activeEntity.fallbackImage;
-                      }}
+                      onError={(e) => handleSmartImageError(e, activeEntity.fallbackImage)}
                       alt={activeEntity.name}
                       className="w-full h-full object-cover"
                     />
