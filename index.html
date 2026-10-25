@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>THE BACKROOMS ARCHIVE // M.E.G. DATABASE</title>
+  
+  <!-- Google Fonts: JetBrains Mono & Share Tech Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;0,800;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            terminal: {
+              bg: '#070709',
+              panel: '#0e0f12',
+              border: '#26272b',
+              yellow: '#f5be0b',
+              amber: '#d97706',
+              dim: '#71717a'
+            }
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'monospace'],
+            display: ['"Share Tech Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React & ReactDOM CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for JSX compilation in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      selection-background-color: #f5be0b;
+      selection-color: #000;
+    }
+    ::selection {
+      background: #f5be0b;
+      color: #070709;
+    }
+    body {
+      background-color: #070709;
+      color: #e4e4e7;
+      font-family: 'JetBrains Mono', monospace;
+      overflow-x: hidden;
+    }
+
+    /* CRT Scanlines Effect */
+    .crt-scanlines {
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.38) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.02),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.02)
+      );
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+    }
+
+    /* Animated subtle CRT roll bar */
+    @keyframes scanbar {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+    .crt-rollbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 120px;
+      background: linear-gradient(
+        to bottom,
+        transparent,
+        rgba(245, 190, 11, 0.03),
+        transparent
+      );
+      animation: scanbar 9s linear infinite;
+      pointer-events: none;
+      z-index: 45;
+    }
+
+    /* Subtle Noise Texture Overlay */
+    .bg-noise {
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+    }
+
+    /* Custom Terminal Brackets & Borders */
+    .terminal-box {
+      position: relative;
+      background-color: #0c0d10;
+      border: 1px solid #23252a;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .terminal-box:hover {
+      border-color: rgba(245, 190, 11, 0.6);
+      box-shadow: 0 0 25px -5px rgba(245, 190, 11, 0.15);
+    }
+
+    .corner-accent::before,
+    .corner-accent::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-color: #f5be0b;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+    .corner-accent::before {
+      top: -1px;
+      left: -1px;
+      border-top: 2px solid #f5be0b;
+      border-left: 2px solid #f5be0b;
+    }
+    .corner-accent::after {
+      bottom: -1px;
+      right: -1px;
+      border-bottom: 2px solid #f5be0b;
+      border-right: 2px solid #f5be0b;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070709;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border: 1px solid #3f3f46;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f5be0b;
+    }
+
+    .glow-text {
+      text-shadow: 0 0 12px rgba(245, 190, 11, 0.45);
+    }
+  </style>
+</head>
+<body class="min-h-screen relative selection:bg-amber-400 selection:text-black">
+  <!-- CRT Visual Overlays -->
+  <div class="fixed inset-0 crt-scanlines z-40 pointer-events-none"></div>
+  <div class="fixed inset-0 bg-noise z-40 pointer-events-none"></div>
+  <div class="crt-rollbar"></div>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // ============================================================================
+    // CUSTOM GENERATOR FOR ATMOSPHERIC PLACEHOLDER SVGS
+    // (Replace the URLs in HERO_BG_URL, LEVELS, and ENTITIES with your own links!)
+    // ============================================================================
+    const createTerminalPlaceholder = (code, subtitle, accentColor = '#f5be0b', bgTone = '#111215') => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="${accentColor}" stroke-width="0.6" stroke-opacity="0.14"/>
+          </pattern>
+          <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stop-color="${bgTone}" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#050507" stop-opacity="0.95"/>
+          </radialGradient>
+        </defs>
+        <rect width="800" height="500" fill="${bgTone}"/>
+        <rect width="800" height="500" fill="url(#grid)"/>
+        <!-- Architectural corridor perspective lines -->
+        <line x1="0" y1="0" x2="260" y2="170" stroke="${accentColor}" stroke-opacity="0.25" stroke-width="1.5"/>
+        <line x1="800" y1="0" x2="540" y2="170" stroke="${accentColor}" stroke-opacity="0.25" stroke-width="1.5"/>
+        <line x1="0" y1="500" x2="260" y2="330" stroke="${accentColor}" stroke-opacity="0.25" stroke-width="1.5"/>
+        <line x1="800" y1="500" x2="540" y2="330" stroke="${accentColor}" stroke-opacity="0.25" stroke-width="1.5"/>
+        <rect x="260" y="170" width="280" height="160" fill="none" stroke="${accentColor}" stroke-opacity="0.3" stroke-width="1.5"/>
+        <rect x="330" y="210" width="140" height="80" fill="none" stroke="${accentColor}" stroke-opacity="0.18" stroke-dasharray="4 4"/>
+        <rect width="800" height="500" fill="url(#vignette)"/>
+        <!-- HUD Frame -->
+        <rect x="24" y="24" width="752" height="452" fill="none" stroke="${accentColor}" stroke-opacity="0.35" stroke-width="1"/>
+        <text x="45" y="55" fill="${accentColor}" fill-opacity="0.7" font-family="monospace" font-size="13" letter-spacing="2">M.E.G. VISUAL FEED // REC [●]</text>
+        <text x="755" y="55" fill="${accentColor}" fill-opacity="0.5" font-family="monospace" font-size="12" text-anchor="end">CAM_ARCHIVE_94</text>
+        <text x="400" y="245" fill="${accentColor}" font-family="monospace" font-size="38" font-weight="bold" text-anchor="middle" letter-spacing="4">${code}</text>
+        <text x="400" y="280" fill="#a1a1aa" font-family="monospace" font-size="15" text-anchor="middle" letter-spacing="3">${subtitle}</text>
+        <text x="45" y="455" fill="${accentColor}" fill-opacity="0.45" font-family="monospace" font-size="11" letter-spacing="1">SIGNAL INTEGRITY: 87.4% // NO-CLIP TELEMETRY</text>
+      </svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    };
+
+    // ============================================================================
+    // HERO BACKGROUND IMAGE URL (Paste your custom URL here anytime)
+    // ============================================================================
+    const HERO_BG_URL = createTerminalPlaceholder("SECTOR // THRESHOLD", "NON-EUCLIDEAN SPATIAL ANOMALY", "#f5be0b", "#14120a");
+
+    // ============================================================================
+    // ENTITIES DATABASE (Monsters)
+    // ============================================================================
+    const ENTITIES = [
+      {
+        id: "bacteria",
+        name: "Bacteria (Lifeform)",
+        classification: "Entity 001 // Hostile Pathogen-Construct",
+        threatLevel: "EXTREME",
+        habitat: "Level 0",
+        image: createTerminalPlaceholder("ENTITY // BACTERIA", "TALL WIRE-FRAME BIOLOGICAL ANOMALY", "#ef4444", "#170b0b"),
+        description: "A towering, spindly humanoid organism composed of tangled, tar-black tendon-like filaments. It emits a distorted, metallic howling sound resembling mangled radio transmissions and rapidly stalks wanderers who remain stationary in Level 0 for too long. Direct physical contact results in immediate assimilation or fatal cellular breakdown."
+      },
+      {
+        id: "smiler",
+        name: "Smilers",
+        classification: "Entity 003 // Photophobic Predator",
+        threatLevel: "HIGH",
+        habitat: "Level 1, Level 2, Level !, Dark Zones",
+        image: createTerminalPlaceholder("ENTITY // SMILER", "LUMINESCENT EYES & TEETH IN DARKNESS", "#f97316", "#140d08"),
+        description: "Smilers are recognizable almost exclusively by their reflective, glowing eyes and unnaturally wide, gleaming teeth suspended in pitch-black darkness. It is unknown whether they possess a physical body beyond the darkness that shrouds them. They are attracted to light sources—if spotted, turn off flashlights immediately and back away slowly while maintaining eye contact."
+      },
+      {
+        id: "hound",
+        name: "Hounds",
+        classification: "Entity 008 // Quadrupedal Scavenger",
+        threatLevel: "MODERATE-HIGH",
+        habitat: "Level 1, Level 2, Level 11",
+        image: createTerminalPlaceholder("ENTITY // HOUND", "QUADRUPEDAL HUMANOID MUTATION", "#eab308", "#141108"),
+        description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts."
+      },
+      {
+        id: "skin-stealer",
+        name: "Skin-Stealers",
+        classification: "Entity 010 // Mimetic Carnivore",
+        threatLevel: "SEVERE",
+        habitat: "Level 1, Level 2, Level 4",
+        image: createTerminalPlaceholder("ENTITY // SKIN-STEALER", "MIMETIC DERMAL PARASITE", "#f97316", "#160f09"),
+        description: "Large, pale, humanoid creatures with sunken eyes and microscopic suction bumps covering their flesh. When hunting, they flay deceased or captured wanderers and wear their skin like a decaying suit to lure other humans. You can identify a disguised Skin-Stealer by its translucent, yellowish blood and inability to speak coherent sentences."
+      },
+      {
+        id: "clump",
+        name: "Clumps",
+        classification: "Entity 015 // Amalgamated Appendages",
+        threatLevel: "HIGH",
+        habitat: "Level 2, Tight Maintenance Tunnels",
+        image: createTerminalPlaceholder("ENTITY // CLUMP", "HYPER-ELASTIC LIMB AMALGAMATION", "#ef4444", "#180a0a"),
+        description: "A writhing spherical mass of human limbs—arms, legs, and hands of varying sizes—fused together around a central jaw. Clumps compress themselves into ceiling vents or narrow pipe junctions. When prey passes within a three-meter radius, a long muscular central arm shoots out at blinding speed to drag the victim into the mass."
+      },
+      {
+        id: "partygoer",
+        name: "Partygoers",
+        classification: "Entity 067 // High-Intelligence Apex Threat",
+        threatLevel: "LETHAL",
+        habitat: "Level Fun, Level !, Corrupted Sub-Layers",
+        image: createTerminalPlaceholder("ENTITY // PARTYGOER", "CARVED SMILE // NO-CLIP HIJACKER", "#dc2626", "#1c0808"),
+        description: "Tall, bipedal entities with leathery ochre skin, no visible facial features except a crudely carved, bleeding smile, and latch-hook appendices instead of hands. Exceptionally intelligent, they are capable of hacking M.E.G. terminal entries, appending '=)' to documentation to lure unsuspecting explorers into traps."
+      },
+      {
+        id: "hydrolitis",
+        name: "Hydrolitis Plague",
+        classification: "Entity 037 // Waterborne Microbial Pathogen",
+        threatLevel: "BIOHAZARD",
+        habitat: "Level 37 (Stagnant Dark Pools)",
+        image: createTerminalPlaceholder("BIOHAZARD // HYDROLITIS", "WATERBORNE CELLULAR PATHOGEN", "#10b981", "#071512"),
+        description: "An invisible bacterium thriving in the unchlorinated, shadowed depths of Level 37's lower subterranean pools. Upon inhalation of warm mist or contact with open wounds, it induces severe delirium, hypothermia, and pulmonary edema within hours."
+      }
+    ];
+
+    // ============================================================================
+    // LEVELS DATABASE (8 Iconic Backrooms Levels across all 5 categories)
+    // ============================================================================
+    const LEVELS = [
+      {
+        id: "level-0",
+        code: "LEVEL 0",
+        name: "Level 0 — \"The Lobby\"",
+        danger: "UNSTABLE",
+        survivalRate: "64%",
+        classInfo: "Class 1 // Minimal Entity Count",
+        image: createTerminalPlaceholder("LEVEL 0 // THE LOBBY", "600 MILLION SQ. MILES OF MONO-YELLOW", "#f5be0b", "#181509"),
+        shortDesc: "An endless non-linear expanse of yellowing wallpaper, damp carpet, and buzzing fluorescent lights.",
+        description: "Level 0 is an expansive non-Euclidean space resembling the back rooms of a commercial retail outlet. All rooms in Level 0 share the same superficial features: worn mono-yellow wallpaper, old moist carpet, scattered electrical outlets, and inconsistently placed fluorescent lighting that hums at a constant, deafening 60Hz frequency. Linear navigation is impossible; walking in a straight line often loops wanderers back to their starting room, and GPS, compasses, and cellular radios fail completely.",
+        entities: ["bacteria"]
+      },
+      {
+        id: "level-1",
+        code: "LEVEL 1",
+        name: "Level 1 — \"Habitable Zone\"",
+        danger: "UNSTABLE",
+        survivalRate: "78%",
+        classInfo: "Class 1 // Supply Crates Present",
+        image: createTerminalPlaceholder("LEVEL 1 // HABITABLE ZONE", "CONCRETE WAREHOUSE & DIM FOG", "#a1a1aa", "#111317"),
+        shortDesc: "A massive concrete warehouse with low-hanging mist and reliable crates of Almond Water.",
+        description: "Level 1 is a massive, sprawling warehouse featuring concrete floors and walls, exposed rebar, and a low-hanging mist with no discernible source. Unlike Level 0, this level possesses a steady supply of wooden supply crates that randomly materialize and vanish, containing Almond Water, batteries, medical supplies, and canned rations. However, the overhead lights are prone to flickering off for hours or days at a time—when total blackout occurs, hostile entities emerge in large numbers.",
+        entities: ["hound", "smiler", "skin-stealer"]
+      },
+      {
+        id: "level-2",
+        code: "LEVEL 2",
+        name: "Level 2 — \"Pipe Dreams\"",
+        danger: "DANGEROUS",
+        survivalRate: "38%",
+        classInfo: "Class 3 // High Thermal Hazard",
+        image: createTerminalPlaceholder("LEVEL 2 // PIPE DREAMS", "CLAUSTROPHOBIC STEAM MAINTENANCE TUNNELS", "#f97316", "#18100a"),
+        shortDesc: "Millions of miles of claustrophobic concrete maintenance tunnels lined with scalding steam pipes.",
+        description: "Level 2 consists of dark, claustrophobic concrete maintenance hallways stretching for millions of miles. The walls are lined with rusted pipes that transport scalding steam and viscous black sludge, driving ambient temperatures upward of 43°C (110°F) and deeper sectors above 60°C. Most doors are locked or lead into dead-end boiler rooms. The deafening hiss of ruptured valves masks the footsteps of numerous entities stalking the corridors.",
+        entities: ["smiler", "clump", "hound", "skin-stealer"]
+      },
+      {
+        id: "level-4",
+        code: "LEVEL 4",
+        name: "Level 4 — \"Abandoned Office\"",
+        danger: "SAFE",
+        survivalRate: "94%",
+        classInfo: "Class 0 // M.E.G. Bastion Sector",
+        image: createTerminalPlaceholder("LEVEL 4 // ABANDONED OFFICE", "EMPTY CUBICLES & RAINY WINDOWS", "#10b981", "#091511"),
+        shortDesc: "An empty, quiet office building largely devoid of threats and rich in Almond Water.",
+        description: "Level 4 resembles an empty, modern office building almost completely stripped of furniture save for occasional cubicles, water coolers, and vending machines filled with Almond Water. It is considered the safest crossroads for newly arrived wanderers to recover psychologically. Though windows line the exterior walls, they are darkened by simulated heavy rain—wanderers are strictly advised never to approach windows that appear clear or open.",
+        entities: ["hound"]
+      },
+      {
+        id: "level-37",
+        code: "LEVEL 37",
+        name: "Level 37 — \"Sublimity\" (The Poolrooms)",
+        danger: "SAFE",
+        survivalRate: "89%",
+        classInfo: "Class 0 // Acoustic Anomaly",
+        image: createTerminalPlaceholder("LEVEL 37 // THE POOLROOMS", "INFINITE WHITE CERAMIC TILED POOLS", "#14b8a6", "#071618"),
+        shortDesc: "A serene complex of interconnected ceramic-tiled rooms submerged in lukewarm turquoise water.",
+        description: "Commonly referred to as 'The Poolrooms', Level 37 is a vast complex of interconnected rooms and corridors completely clad in pristine white and pastel ceramic tiles, partially submerged in lukewarm, crystal-clear water. Sound behaves anomalously here: voices and splashes are muffled almost immediately, inducing a hypnotic sense of tranquility. While daylight-lit zones are completely free of entities, explorers must avoid descending into the unlit abyssal drains where the Hydrolitis Plague festers.",
+        entities: ["hydrolitis"]
+      },
+      {
+        id: "level-9",
+        code: "LEVEL 9",
+        name: "Level 9 — \"The Darkened Suburbs\"",
+        danger: "HOSTILE",
+        survivalRate: "19%",
+        classInfo: "Class 4 // Perpetual Midnight",
+        image: createTerminalPlaceholder("LEVEL 9 // DARKENED SUBURBS", "MIDNIGHT STREETS & AUTONOMOUS EYES", "#ef4444", "#170b11"),
+        shortDesc: "An infinite suburban neighborhood trapped in perpetual midnight fog and patrolled by anomalies.",
+        description: "Level 9 is an infinite suburban neighborhood trapped in perpetual midnight, blanketed in wet asphalt and unnatural fog. The houses are furnished as if evacuated seconds prior, often featuring working power grids that flicker erratically. Staying on the open street under working streetlights is fatal; wanderers must move stealthily through backyards and abandoned garages to evade the dense concentration of entities prowling the sidewalks.",
+        entities: ["smiler", "skin-stealer", "hound"]
+      },
+      {
+        id: "level-run",
+        code: "LEVEL !",
+        name: "Level ! — \"Run For Your Life!\"",
+        danger: "DEADLY",
+        survivalRate: "1.2%",
+        classInfo: "Class Deadzone // 10 KM Hospital Sprint",
+        image: createTerminalPlaceholder("LEVEL ! // RUN FOR YOUR LIFE", "FLASHING RED EMERGENCY CORRIDOR", "#dc2626", "#220606"),
+        shortDesc: "A ten-kilometer hospital corridor bathed in blaring red sirens and a relentless horde behind you.",
+        description: "Level ! consists of an infinitely long, narrow hospital hallway bathed in flashing red emergency lights and deafening klaxon alarms. The instant a wanderer manifests here, a massive horde of hundreds of entities bursts through the doors directly behind them. The only known method of survival is an uninterrupted 10-kilometer sprint forward while dodging overturned gurneys, hospital beds, and debris until reaching the exit door at the end of the corridor.",
+        entities: ["smiler", "hound", "skin-stealer", "clump", "partygoer"]
+      },
+      {
+        id: "level-fun",
+        code: "LEVEL FUN",
+        name: "Level Fun — \"The Party Rooms\" =)",
+        danger: "DEADLY",
+        survivalRate: "0.04%",
+        classInfo: "Class Deadzone // Compromised Entry",
+        image: createTerminalPlaceholder("LEVEL FUN // DO NOT ENTER =)", "COLORFUL PLAYPLACE // APEX TRAP", "#dc2626", "#1d070c"),
+        shortDesc: "A brightly decorated children's entertainment center serving as the primary hive of the Partygoers.",
+        description: "Despite frequent attempts by the Partygoers to overwrite this database entry with invitations to a 'harmless celebration =)', M.E.G. High Command classifies Level Fun as an absolute Deadzone. The environment resembles a nostalgic 1990s children's birthday parlor complete with plastic play-tubes, confetti, and distorted calliope music playing over intercoms. Entry into this level via no-clipping under tables in Level 1 or Level 0 is considered virtually unsurvivable.",
+        entities: ["partygoer"]
+      }
+    ];
+
+    // ============================================================================
+    // DANGER CATEGORY CONFIGURATION
+    // ============================================================================
+    const DANGER_CATEGORIES = ["SAFE", "UNSTABLE", "DANGEROUS", "HOSTILE", "DEADLY"];
+
+    const DANGER_STYLES = {
+      SAFE: {
+        badge: "bg-emerald-950/80 text-emerald-400 border-emerald-500/60",
+        buttonActive: "bg-emerald-500 text-black border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]",
+        buttonIdle: "border-emerald-500/30 text-emerald-400/80 hover:border-emerald-400 hover:bg-emerald-950/40",
+        barColor: "bg-emerald-500",
+        dot: "bg-emerald-400"
+      },
+      UNSTABLE: {
+        badge: "bg-amber-950/80 text-amber-400 border-amber-500/60",
+        buttonActive: "bg-amber-400 text-black border-amber-300 shadow-[0_0_20px_rgba(245,190,11,0.4)]",
+        buttonIdle: "border-amber-500/30 text-amber-400/80 hover:border-amber-400 hover:bg-amber-950/40",
+        barColor: "bg-amber-400",
+        dot: "bg-amber-400"
+      },
+      DANGEROUS: {
+        badge: "bg-orange-950/80 text-orange-400 border-orange-500/60",
+        buttonActive: "bg-orange-500 text-black border-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.4)]",
+        buttonIdle: "border-orange-500/30 text-orange-400/80 hover:border-orange-400 hover:bg-orange-950/40",
+        barColor: "bg-orange-500",
+        dot: "bg-orange-400"
+      },
+      HOSTILE: {
+        badge: "bg-red-950/80 text-red-400 border-red-500/60",
+        buttonActive: "bg-red-500 text-black border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)]",
+        buttonIdle: "border-red-500/30 text-red-400/80 hover:border-red-400 hover:bg-red-950/40",
+        barColor: "bg-red-500",
+        dot: "bg-red-500"
+      },
+      DEADLY: {
+        badge: "bg-rose-950/90 text-rose-300 border-rose-500 animate-pulse",
+        buttonActive: "bg-rose-600 text-white border-rose-400 shadow-[0_0_25px_rgba(225,29,72,0.6)]",
+        buttonIdle: "border-rose-500/40 text-rose-400/90 hover:border-rose-400 hover:bg-rose-950/50",
+        barColor: "bg-rose-600",
+        dot: "bg-rose-500"
+      }
+    };
+
+    // ============================================================================
+    // MAIN APPLICATION COMPONENT
+    // ============================================================================
+    function App() {
+      const [selectedDanger, setSelectedDanger] = useState("ALL");
+      const [searchQuery, setSearchQuery] = useState("");
+      const [activeLevel, setActiveLevel] = useState(null);
+      const [activeEntity, setActiveEntity] = useState(null);
+      const [clock, setClock] = useState("00:00:00 UTC");
+
+      // Terminal live clock
+      useEffect(() => {
+        const updateClock = () => {
+          const now = new Date();
+          setClock(now.toISOString().replace('T', ' ').substring(0, 19) + ' // SYNC');
+        };
+        updateClock();
+        const interval = setInterval(updateClock, 1000);
+        return () => clearInterval(interval);
+      }, []);
+
+      // Close modals with Escape key (closes Monster Modal first, then Level Modal)
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === "Escape") {
+            if (activeEntity) {
+              setActiveEntity(null);
+            } else if (activeLevel) {
+              setActiveLevel(null);
+            }
+          }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+      }, [activeLevel, activeEntity]);
+
+      // Filtered levels based on category button & search input
+      const filteredLevels = useMemo(() => {
+        return LEVELS.filter((lvl) => {
+          const matchesDanger = selectedDanger === "ALL" || lvl.danger === selectedDanger;
+          const matchesQuery =
+            lvl.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            lvl.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            lvl.code.toLowerCase().includes(searchQuery.toLowerCase());
+          return matchesDanger && matchesQuery;
+        });
+      }, [selectedDanger, searchQuery]);
+
+      // Helper to find an entity object by ID
+      const getEntityById = (id) => ENTITIES.find((ent) => ent.id === id);
+
+      return (
+        <div className="min-h-screen flex flex-col bg-[#070709] text-zinc-200 relative z-10">
+          
+          {/* TOP TERMINAL STATUS BAR */}
+          <header className="sticky top-0 z-30 bg-[#070709]/95 backdrop-blur-md border-b border-zinc-800/90 px-4 sm:px-8 py-2.5">
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs tracking-widest">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-400/10 border border-amber-400/40 text-amber-400 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                  M.E.G. ARCHIVE_OS v4.09
+                </span>
+                <span className="hidden md:inline text-zinc-500">CLEARANCE: LEVEL-4 [OVERSEER]</span>
+              </div>
+              <div className="flex items-center gap-4 text-zinc-400">
+                <span className="hidden sm:inline text-amber-400/80">{clock}</span>
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("entities-codex");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors"
+                >
+                  [ENTITY_INDEX: {ENTITIES.length}]
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* 1. HERO SECTION */}
+          <section className="relative border-b border-zinc-800 overflow-hidden">
+            {/* Hero Background Image with Dark Gradient Overlay */}
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-35 scale-105 transition-transform duration-1000"
+              style={{ backgroundImage: `url("${HERO_BG_URL}")` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#070709]/80 via-[#070709]/65 to-[#070709]" />
+
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-8 py-16 sm:py-24 lg:py-28">
+              <div className="max-w-3xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 mb-5 bg-zinc-900/90 border border-amber-500/40 text-amber-400 text-xs uppercase tracking-[0.2em]">
+                  <span>// NON-EUCLIDEAN DATABASE TERMINAL</span>
+                </div>
+                
+                <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl font-bold tracking-wider text-white uppercase glow-text leading-none mb-4">
+                  THE BACKROOMS <span className="text-amber-400">ARCHIVE</span>
+                </h1>
+                
+                <p className="text-lg sm:text-2xl text-amber-400/90 font-semibold tracking-[0.25em] uppercase mb-6">
+                  Survive. Document. Archive.
+                </p>
+
+                <p className="text-zinc-400 text-sm sm:text-base leading-relaxed max-w-2xl border-l-2 border-amber-400/60 pl-4 mb-8">
+                  If you are not careful and you no-clip out of reality in the wrong areas, you will end up in the Backrooms. 
+                  This terminal aggregates verified spatial cartography, environmental hazards, and hostile biological entities documented by wandering operatives.
+                </p>
+
+                {/* Terminal Telemetry Mini-Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                  <div className="bg-zinc-950/80 border border-zinc-800 p-3">
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Documented Sectors</div>
+                    <div className="text-xl font-bold text-amber-400 mt-0.5">{LEVELS.length} LEVELS</div>
+                  </div>
+                  <div className="bg-zinc-950/80 border border-zinc-800 p-3">
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Cataloged Threats</div>
+                    <div className="text-xl font-bold text-red-400 mt-0.5">{ENTITIES.length} ENTITIES</div>
+                  </div>
+                  <div className="bg-zinc-950/80 border border-zinc-800 p-3">
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Acoustic Hum</div>
+                    <div className="text-xl font-bold text-zinc-200 mt-0.5">60.0 Hz</div>
+                  </div>
+                  <div className="bg-zinc-950/80 border border-zinc-800 p-3">
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest">Reality Anchor</div>
+                    <div className="text-xl font-bold text-emerald-400 mt-0.5">ONLINE</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* MAIN CONTENT CONTAINER */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-10 sm:py-14 space-y-14">
+            
+            {/* 2. LEVEL FILTER SECTION */}
+            <section className="space-y-5">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-800 pb-4">
+                <div>
+                  <div className="text-xs text-amber-400 tracking-[0.2em] uppercase mb-1">
+                    // DIRECTORY_QUERY_MODULE
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-bold tracking-wider uppercase text-white">
+                    SECTOR CLASSIFICATION FILTER
+                  </h2>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative w-full md:w-72">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="SEARCH LEVEL OR KEYWORD..."
+                    className="w-full bg-zinc-950 border border-zinc-700 focus:border-amber-400 px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none tracking-wider uppercase"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-amber-400"
+                    >
+                      [CLR]
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 5 Danger Category Buttons + ALL Button */}
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                <button
+                  onClick={() => setSelectedDanger("ALL")}
+                  className={`px-4 py-2.5 text-xs sm:text-sm font-bold tracking-widest uppercase border transition-all duration-150 ${
+                    selectedDanger === "ALL"
+                      ? "bg-amber-400 text-black border-amber-300 shadow-[0_0_20px_rgba(245,190,11,0.35)]"
+                      : "bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-amber-400/60 hover:text-amber-300"
+                  }`}
+                >
+                  [ALL SECTORS: {LEVELS.length}]
+                </button>
+
+                {DANGER_CATEGORIES.map((category) => {
+                  const isActive = selectedDanger === category;
+                  const count = LEVELS.filter((l) => l.danger === category).length;
+                  const style = DANGER_STYLES[category];
+
+                  return (
+                    <button
+                      key={category}
+                      onClick={() =>
+                        setSelectedDanger(isActive ? "ALL" : category)
+                      }
+                      className={`px-4 py-2.5 text-xs sm:text-sm font-bold tracking-widest uppercase border transition-all duration-150 flex items-center gap-2 bg-zinc-950 ${
+                        isActive ? style.buttonActive : style.buttonIdle
+                      }`}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          isActive ? "bg-current" : style.dot
+                        }`}
+                      />
+                      <span>{category}</span>
+                      <span className="opacity-70 text-[11px]">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* 3. LEVELS GRID */}
+            <section>
+              {filteredLevels.length === 0 ? (
+                <div className="terminal-box p-12 text-center border-dashed border-zinc-800">
+                  <p className="text-amber-400 text-sm tracking-widest uppercase mb-2">
+                    // ZERO RECORDS MATCHING FILTER CRITERIA
+                  </p>
+                  <p className="text-zinc-500 text-xs mb-6">
+                    The requested sector either does not exist or has been expunged from M.E.G. servers.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedDanger("ALL");
+                      setSearchQuery("");
+                    }}
+                    className="px-4 py-2 bg-amber-400 text-black text-xs font-bold uppercase tracking-widest hover:bg-amber-300"
+                  >
+                    [RESET FILTER PARAMETERS]
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredLevels.map((level) => {
+                    const dangerStyle = DANGER_STYLES[level.danger];
+                    return (
+                      <article
+                        key={level.id}
+                        onClick={() => setActiveLevel(level)}
+                        className="terminal-box corner-accent group cursor-pointer flex flex-col justify-between overflow-hidden"
+                      >
+                        <div>
+                          {/* Card Image Container */}
+                          <div className="relative h-48 w-full overflow-hidden bg-zinc-950 border-b border-zinc-800">
+                            <img
+                              src={level.image}
+                              alt={level.name}
+                              className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#0c0d10] via-transparent to-black/40" />
+
+                            {/* Top-left File ID */}
+                            <span className="absolute top-3 left-3 px-2 py-0.5 bg-black/80 border border-zinc-700 text-[11px] text-amber-400 font-bold tracking-widest">
+                              {level.code}
+                            </span>
+
+                            {/* Top-right Danger Badge */}
+                            <span
+                              className={`absolute top-3 right-3 px-2.5 py-0.5 border text-[11px] font-bold tracking-widest uppercase ${dangerStyle.badge}`}
+                            >
+                              {level.danger}
+                            </span>
+
+                            {/* Bottom Survival Rate Overlay */}
+                            <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-zinc-300 font-mono">
+                              <span className="bg-black/70 px-2 py-0.5 border border-zinc-800">
+                                SURVIVAL: <strong className="text-amber-400">{level.survivalRate}</strong>
+                              </span>
+                              <span className="bg-black/70 px-2 py-0.5 border border-zinc-800 text-zinc-400">
+                                ENTITIES: {level.entities.length}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Card Body */}
+                          <div className="p-5">
+                            <div className="text-[11px] text-zinc-500 uppercase tracking-widest mb-1">
+                              {level.classInfo}
+                            </div>
+                            <h3 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors tracking-wide mb-2.5">
+                              {level.name}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed line-clamp-3">
+                              {level.shortDesc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className="px-5 py-3 bg-zinc-950/70 border-t border-zinc-800/80 flex items-center justify-between text-xs">
+                          <span className="text-zinc-500 uppercase tracking-wider">
+                            FILE_ID: #{level.id.toUpperCase()}
+                          </span>
+                          <span className="text-amber-400 font-bold tracking-widest group-hover:translate-x-1 transition-transform">
+                            ACCESS DOSSIER &rarr;
+                          </span>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* BONUS QUICK-ACCESS ENTITY CODEX BAR */}
+            <section id="entities-codex" className="pt-6 border-t border-zinc-800/90">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+                <div>
+                  <div className="text-xs text-red-400 tracking-[0.2em] uppercase mb-1">
+                    // BIOLOGICAL_THREAT_REGISTRY
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-wider uppercase text-white">
+                    DOCUMENTED ENTITIES ({ENTITIES.length})
+                  </h2>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Click any entity below or inside a Level Dossier to inspect biological threat data.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                {ENTITIES.map((ent) => (
+                  <button
+                    key={ent.id}
+                    onClick={() => setActiveEntity(ent)}
+                    className="text-left p-3.5 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-start justify-between gap-3"
+                  >
+                    <div>
+                      <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold">
+                        {ent.threatLevel} THREAT
+                      </div>
+                      <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5">
+                        {ent.name}
+                      </div>
+                      <div className="text-[11px] text-zinc-500 mt-1">
+                        Habitat: {ent.habitat}
+                      </div>
+                    </div>
+                    <span className="text-xs text-zinc-600 group-hover:text-red-400 font-bold">
+                      [OPEN]
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          </main>
+
+          {/* FOOTER */}
+          <footer className="border-t border-zinc-800 bg-[#050507] px-4 sm:px-8 py-8 mt-12">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+              <div>
+                <span className="text-amber-400 font-bold">THE BACKROOMS ARCHIVE</span> // MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL
+              </div>
+              <div className="text-center sm:text-right">
+                TIP: TO REPLACE IMAGES WITH CUSTOM URLS, EDIT <code className="text-amber-400">HERO_BG_URL</code>, <code className="text-amber-400">LEVELS</code> &amp; <code className="text-amber-400">ENTITIES</code> IN <code className="text-zinc-300">index.html</code>
+              </div>
+            </div>
+          </footer>
+
+          {/* ================================================================= */}
+          {/* 4. LEVEL MODAL WINDOW                                             */}
+          {/* ================================================================= */}
+          {activeLevel && (
+            <div
+              onClick={() => setActiveLevel(null)}
+              className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-3xl bg-[#0b0c0f] border-2 border-amber-400/70 shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden my-auto max-h-[92vh] flex flex-col"
+              >
+                {/* Modal Top Terminal Bar */}
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-zinc-950 border-b border-zinc-800">
+                  <div className="flex items-center gap-2 text-xs text-amber-400 font-bold tracking-widest uppercase">
+                    <span>// SECTOR DOSSIER: {activeLevel.code}</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveLevel(null)}
+                    className="px-2.5 py-1 bg-zinc-900 hover:bg-amber-400 hover:text-black text-zinc-300 border border-zinc-700 text-xs font-bold tracking-widest transition-colors"
+                  >
+                    [ESC / CLOSE X]
+                  </button>
+                </div>
+
+                {/* Modal Scrollable Body */}
+                <div className="overflow-y-auto p-4 sm:p-6 space-y-6">
+                  {/* Large Level Image */}
+                  <div className="relative h-56 sm:h-72 w-full bg-zinc-950 border border-zinc-800 overflow-hidden">
+                    <img
+                      src={activeLevel.image}
+                      alt={activeLevel.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0b0c0f] via-transparent to-black/30" />
+                    
+                    <div className="absolute bottom-3 left-4 right-4 flex flex-wrap items-end justify-between gap-2">
+                      <div>
+                        <span className="text-xs text-amber-400 uppercase tracking-widest block">
+                          {activeLevel.classInfo}
+                        </span>
+                        <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wide">
+                          {activeLevel.name}
+                        </h2>
+                      </div>
+                      <span
+                        className={`px-3 py-1 border text-xs font-bold tracking-widest uppercase ${
+                          DANGER_STYLES[activeLevel.danger].badge
+                        }`}
+                      >
+                        DANGER: {activeLevel.danger}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Survival Rate Meter */}
+                  <div className="bg-zinc-950 border border-zinc-800 p-4">
+                    <div className="flex items-center justify-between text-xs uppercase tracking-widest mb-2">
+                      <span className="text-zinc-400">ESTIMATED SURVIVAL PROBABILITY</span>
+                      <span className="text-base font-bold text-amber-400">
+                        {activeLevel.survivalRate}
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-zinc-900 border border-zinc-800 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          DANGER_STYLES[activeLevel.danger].barColor
+                        }`}
+                        style={{ width: activeLevel.survivalRate }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Full Description */}
+                  <div className="space-y-2">
+                    <div className="text-xs text-amber-400 uppercase tracking-widest font-bold">
+                      // ENVIRONMENTAL_DESCRIPTION &amp; ANOMALOUS PROPERTIES
+                    </div>
+                    <p className="text-sm sm:text-base text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800/80 p-4">
+                      {activeLevel.description}
+                    </p>
+                  </div>
+
+                  {/* Confirmed Entities List (Clicking opens Monster Modal) */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-red-400 uppercase tracking-widest font-bold">
+                        // CONFIRMED HOSTILE ENTITIES IN THIS SECTOR ({activeLevel.entities.length})
+                      </span>
+                      <span className="text-[11px] text-zinc-500">
+                        [CLICK ENTITY TO INSPECT]
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {activeLevel.entities.map((entityId) => {
+                        const entityObj = getEntityById(entityId);
+                        if (!entityObj) return null;
+                        return (
+                          <button
+                            key={entityObj.id}
+                            onClick={() => setActiveEntity(entityObj)}
+                            className="flex items-center justify-between p-3.5 bg-zinc-950 border border-zinc-800 hover:border-red-500 text-left group transition-all"
+                          >
+                            <div>
+                              <div className="text-xs font-bold text-red-400 group-hover:text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                {entityObj.name}
+                              </div>
+                              <div className="text-[11px] text-zinc-500 mt-0.5">
+                                {entityObj.classification}
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+                              [FILE &rarr;]
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-4 sm:px-6 py-3 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+                  <span>ARCHIVE LOG // VERIFIED BY M.E.G. CARTOGRAPHY</span>
+                  <button
+                    onClick={() => setActiveLevel(null)}
+                    className="text-amber-400 hover:underline font-bold uppercase tracking-wider"
+                  >
+                    [CLOSE DOSSIER]
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* 5. MONSTER (ENTITY) MODAL WINDOW                                  */}
+          {/* ================================================================= */}
+          {activeEntity && (
+            <div
+              onClick={() => setActiveEntity(null)}
+              className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-xl bg-[#0e0a0b] border-2 border-red-500/80 shadow-[0_0_60px_rgba(220,38,38,0.25)] overflow-hidden my-auto"
+              >
+                {/* Entity Header */}
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-red-950/40 border-b border-red-900/60">
+                  <div className="flex items-center gap-2 text-xs text-red-400 font-bold tracking-widest uppercase">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    <span>// BIOLOGICAL THREAT FILE</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveEntity(null)}
+                    className="px-2.5 py-1 bg-zinc-900 hover:bg-red-500 hover:text-black text-zinc-200 border border-red-500/50 text-xs font-bold tracking-widest transition-colors"
+                  >
+                    [RETURN / X]
+                  </button>
+                </div>
+
+                {/* Entity Content */}
+                <div className="p-4 sm:p-6 space-y-5">
+                  {/* Monster Image */}
+                  <div className="relative h-52 sm:h-60 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
+                    <img
+                      src={activeEntity.image}
+                      alt={activeEntity.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0e0a0b] via-transparent to-transparent" />
+                    <span className="absolute top-3 right-3 px-2.5 py-1 bg-red-950/90 border border-red-500 text-red-300 text-[11px] font-bold tracking-widest uppercase">
+                      THREAT: {activeEntity.threatLevel}
+                    </span>
+                  </div>
+
+                  {/* Entity Name & Metadata */}
+                  <div>
+                    <div className="text-xs text-red-400 uppercase tracking-widest font-bold">
+                      {activeEntity.classification}
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-wide mt-1">
+                      {activeEntity.name}
+                    </h3>
+                    <div className="text-xs text-zinc-400 mt-1">
+                      PRIMARY HABITAT: <span className="text-amber-400">{activeEntity.habitat}</span>
+                    </div>
+                  </div>
+
+                  {/* Entity Description */}
+                  <div className="bg-zinc-950/90 border border-red-900/40 p-4">
+                    <div className="text-[11px] text-red-400 uppercase tracking-widest font-bold mb-1.5">
+                      // FIELD OBSERVATIONS &amp; COUNTERMEASURES
+                    </div>
+                    <p className="text-sm text-zinc-300 leading-relaxed">
+                      {activeEntity.description}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setActiveEntity(null)}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest transition-colors"
+                    >
+                      [ACKNOWLEDGE &amp; CLOSE FILE]
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
