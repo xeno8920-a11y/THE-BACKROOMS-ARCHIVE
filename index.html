@@ -166,7 +166,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useRef } = React;
 
     // ============================================================================
     // TERMINAL FALLBACK GENERATOR & SMART IMAGE COMPONENT
@@ -202,6 +202,7 @@
       }, [src]);
 
       const handleError = () => {
+        if (String(src).startsWith("data:image/svg+xml")) return;
         const exts = [".png", ".webp", ".jpeg", ".JPG", ".PNG", ".WEBP"];
         const baseSrc = String(src).replace(/\.[^/.]+$/, "");
         if (extStep < exts.length) {
@@ -225,146 +226,368 @@
     }
 
     // ============================================================================
+    // WEB AUDIO API PROCEDURAL AMBIENT ENGINE
+    // ============================================================================
+    class AmbientEngine {
+      constructor() {
+        this.ctx = null;
+        this.isGlobalRunning = false;
+        this.baseNodes = [];
+        this.levelNodes = [];
+        this.levelIntervals = [];
+        this.noiseBuffer = null;
+      }
+
+      initContext() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx.state === "suspended") {
+          this.ctx.resume();
+        }
+        if (!this.noiseBuffer && this.ctx) {
+          const bufferSize = this.ctx.sampleRate * 3;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          this.noiseBuffer = buffer;
+        }
+      }
+
+      createNoiseSource() {
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = this.noiseBuffer;
+        noise.loop = true;
+        return noise;
+      }
+
+      // 2. ФОНОВЫЙ ЗВУК (60Hz Sine + Lowpass White Noise at 0.03 gain)
+      start() {
+        try {
+          this.initContext();
+          this.stopBaseNodes();
+          this.isGlobalRunning = true;
+
+          const masterGain = this.ctx.createGain();
+          masterGain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+          masterGain.connect(this.ctx.destination);
+
+          // 60Hz Fluorescent Hum
+          const osc = this.ctx.createOscillator();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(60, this.ctx.currentTime);
+
+          // Subtle 120Hz harmonic for realistic ballast buzz
+          const osc2 = this.ctx.createOscillator();
+          osc2.type = "triangle";
+          osc2.frequency.setValueAtTime(120, this.ctx.currentTime);
+          const osc2Gain = this.ctx.createGain();
+          osc2Gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+
+          // Filtered White Noise
+          const noise = this.createNoiseSource();
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.frequency.setValueAtTime(360, this.ctx.currentTime);
+          const noiseGain = this.ctx.createGain();
+          noiseGain.gain.setValueAtTime(0.45, this.ctx.currentTime);
+
+          osc.connect(masterGain);
+          osc2.connect(osc2Gain);
+          osc2Gain.connect(masterGain);
+          noise.connect(filter);
+          filter.connect(noiseGain);
+          noiseGain.connect(masterGain);
+
+          osc.start();
+          osc2.start();
+          noise.start();
+
+          this.baseNodes = [osc, osc2, noise, osc2Gain, filter, noiseGain, masterGain];
+        } catch (err) {
+          console.warn("AmbientEngine start blocked until user gesture:", err);
+        }
+      }
+
+      stopBaseNodes() {
+        this.baseNodes.forEach((node) => {
+          try {
+            if (typeof node.stop === "function") node.stop();
+            if (typeof node.disconnect === "function") node.disconnect();
+          } catch (e) {}
+        });
+        this.baseNodes = [];
+      }
+
+      stop() {
+        this.isGlobalRunning = false;
+        this.stopBaseNodes();
+        this.stopLevelAmbient();
+      }
+
+      // Stop only modal level-specific sound
+      stopLevelAmbient() {
+        this.levelIntervals.forEach((id) => clearInterval(id));
+        this.levelIntervals = [];
+        this.levelNodes.forEach((node) => {
+          try {
+            if (typeof node.stop === "function") node.stop();
+            if (typeof node.disconnect === "function") node.disconnect();
+          } catch (e) {}
+        });
+        this.levelNodes = [];
+      }
+
+      // 4. УНИКАЛЬНЫЙ ЗВУК ДЛЯ КАЖДОГО УРОВНЯ
+      playLevelAmbient(levelId) {
+        this.stopLevelAmbient();
+        if (!this.isGlobalRunning || !levelId) return;
+
+        try {
+          this.initContext();
+          const now = this.ctx.currentTime;
+          const levelMaster = this.ctx.createGain();
+          levelMaster.gain.setValueAtTime(0.04, now);
+          levelMaster.connect(this.ctx.destination);
+          this.levelNodes.push(levelMaster);
+
+          if (levelId === "level-0") {
+            // Гул ламп (60 Гц + шум)
+            const osc = this.ctx.createOscillator();
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(60, now);
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(180, now);
+
+            const noise = this.createNoiseSource();
+            const nFilter = this.ctx.createBiquadFilter();
+            nFilter.type = "bandpass";
+            nFilter.frequency.setValueAtTime(600, now);
+
+            osc.connect(filter);
+            filter.connect(levelMaster);
+            noise.connect(nFilter);
+            nFilter.connect(levelMaster);
+
+            osc.start();
+            noise.start();
+            this.levelNodes.push(osc, filter, noise, nFilter);
+
+          } else if (levelId === "level-1" || levelId === "level-4") {
+            // Гул вентиляции (низкий шум)
+            const noise = this.createNoiseSource();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = "lowpass";
+            filter.frequency.setValueAtTime(145, now);
+
+            const drone = this.ctx.createOscillator();
+            drone.type = "sine";
+            drone.frequency.setValueAtTime(48, now);
+
+            noise.connect(filter);
+            filter.connect(levelMaster);
+            drone.connect(levelMaster);
+
+            noise.start();
+            drone.start();
+            this.levelNodes.push(noise, filter, drone);
+
+          } else if (levelId === "level-2") {
+            // Шипение пара (высокочастотный шум)
+            const noise = this.createNoiseSource();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = "highpass";
+            filter.frequency.setValueAtTime(2200, now);
+
+            noise.connect(filter);
+            filter.connect(levelMaster);
+            noise.start();
+            this.levelNodes.push(noise, filter);
+
+          } else if (levelId === "level-37") {
+            // Плеск воды (короткие импульсы + реверберация/задержка)
+            const delay = this.ctx.createDelay();
+            delay.delayTime.setValueAtTime(0.28, now);
+            const feedback = this.ctx.createGain();
+            feedback.gain.setValueAtTime(0.45, now);
+            delay.connect(feedback);
+            feedback.connect(delay);
+            delay.connect(levelMaster);
+            this.levelNodes.push(delay, feedback);
+
+            const triggerDroplet = () => {
+              if (!this.isGlobalRunning) return;
+              const t = this.ctx.currentTime;
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              const baseFreq = 450 + Math.random() * 550;
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(baseFreq, t);
+              osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.9, t + 0.09);
+
+              g.gain.setValueAtTime(0.35, t);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+
+              osc.connect(g);
+              g.connect(levelMaster);
+              g.connect(delay);
+              osc.start(t);
+              osc.stop(t + 0.15);
+            };
+            triggerDroplet();
+            const id = setInterval(triggerDroplet, 900);
+            this.levelIntervals.push(id);
+
+          } else if (levelId === "level-!" || levelId === "level-run") {
+            // Сирена (осциллятор 800 Гц с прерыванием)
+            const triggerSiren = () => {
+              if (!this.isGlobalRunning) return;
+              const t = this.ctx.currentTime;
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = "sawtooth";
+              osc.frequency.setValueAtTime(800, t);
+              osc.frequency.linearRampToValueAtTime(620, t + 0.45);
+
+              const lp = this.ctx.createBiquadFilter();
+              lp.type = "lowpass";
+              lp.frequency.setValueAtTime(1400, t);
+
+              g.gain.setValueAtTime(0.32, t);
+              g.gain.exponentialRampToValueAtTime(0.01, t + 0.48);
+
+              osc.connect(lp);
+              lp.connect(g);
+              g.connect(levelMaster);
+              osc.start(t);
+              osc.stop(t + 0.5);
+            };
+            triggerSiren();
+            const id = setInterval(triggerSiren, 850);
+            this.levelIntervals.push(id);
+
+          } else if (levelId === "level-fun") {
+            // Искаженная музыка (сэмпл шкатулки, замедленный с расстройкой)
+            const notes = [523.25, 659.25, 783.99, 659.25, 493.88, 587.33, 440.0];
+            let step = 0;
+            const triggerMusicBox = () => {
+              if (!this.isGlobalRunning) return;
+              const t = this.ctx.currentTime;
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              const freq = notes[step % notes.length] * 0.75; // slowed down
+              step++;
+              osc.type = "triangle";
+              osc.frequency.setValueAtTime(freq, t);
+              // eerie pitch warp
+              osc.frequency.linearRampToValueAtTime(freq * 0.94, t + 0.65);
+
+              g.gain.setValueAtTime(0.38, t);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+
+              osc.connect(g);
+              g.connect(levelMaster);
+              osc.start(t);
+              osc.stop(t + 0.72);
+            };
+            triggerMusicBox();
+            const id = setInterval(triggerMusicBox, 780);
+            this.levelIntervals.push(id);
+
+          } else if (levelId === "level-666") {
+            // Звук сердцебиения (низкий удар каждые 1.5 сек)
+            const triggerHeartbeat = () => {
+              if (!this.isGlobalRunning) return;
+              const pulse = (delayOffset, amp) => {
+                const t = this.ctx.currentTime + delayOffset;
+                const osc = this.ctx.createOscillator();
+                const g = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(65, t);
+                osc.frequency.exponentialRampToValueAtTime(28, t + 0.18);
+
+                g.gain.setValueAtTime(amp, t);
+                g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+                osc.connect(g);
+                g.connect(levelMaster);
+                osc.start(t);
+                osc.stop(t + 0.24);
+              };
+              pulse(0, 0.75);
+              pulse(0.24, 0.48);
+            };
+            triggerHeartbeat();
+            const id = setInterval(triggerHeartbeat, 1500);
+            this.levelIntervals.push(id);
+
+          } else if (levelId === "level-5") {
+            // Отель Ужаса: расстроенный ретро-аккорд + виниловый шорох
+            const noise = this.createNoiseSource();
+            const bp = this.ctx.createBiquadFilter();
+            bp.type = "bandpass";
+            bp.frequency.setValueAtTime(1100, now);
+            noise.connect(bp);
+            bp.connect(levelMaster);
+            noise.start();
+
+            const chord = [220, 261.63, 329.63, 392.0];
+            let idx = 0;
+            const playJazzGhost = () => {
+              if (!this.isGlobalRunning) return;
+              const t = this.ctx.currentTime;
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              const f = chord[idx % chord.length];
+              idx++;
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(f, t);
+              osc.frequency.linearRampToValueAtTime(f * 0.97, t + 0.9);
+              g.gain.setValueAtTime(0.22, t);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+              osc.connect(g);
+              g.connect(levelMaster);
+              osc.start(t);
+              osc.stop(t + 1.0);
+            };
+            playJazzGhost();
+            const id = setInterval(playJazzGhost, 1100);
+            this.levelNodes.push(noise, bp);
+            this.levelIntervals.push(id);
+
+          } else {
+            // Level 6, Level 8, Level 9: Тёмный пещерный/туманный эмбиент
+            const noise = this.createNoiseSource();
+            const lp = this.ctx.createBiquadFilter();
+            lp.type = "bandpass";
+            lp.frequency.setValueAtTime(320, now);
+            lp.Q.setValueAtTime(4.0, now);
+            noise.connect(lp);
+            lp.connect(levelMaster);
+            noise.start();
+            this.levelNodes.push(noise, lp);
+          }
+        } catch (e) {
+          console.warn("playLevelAmbient error:", e);
+        }
+      }
+    }
+
+    const soundEngine = new AmbientEngine();
+
+    // ============================================================================
     // HERO BACKGROUND IMAGE URL
     // ============================================================================
     const HERO_BG_URL = "images/hero-bg.jpg";
 
     // ============================================================================
-    // UI TRANSLATIONS DICTIONARY (EN / RU)
+    // RAW DATABASE (LEVELS & ENTITIES) + UNIFIED SITE_DATA STRUCTURE (EN / RU)
     // ============================================================================
-    const UI_TEXT = {
-      en: {
-        osVersion: "M.E.G. ARCHIVE_OS v4.09",
-        clearance: "CLEARANCE: LEVEL-4 [OVERSEER]",
-        entityIndexBtn: "ENTITY_INDEX",
-        heroBadge: "// NON-EUCLIDEAN DATABASE TERMINAL",
-        heroTitle1: "THE BACKROOMS",
-        heroTitle2: "ARCHIVE",
-        heroSubtitle: "Survive. Document. Archive.",
-        heroDesc: "If you are not careful and you no-clip out of reality in the wrong areas, you will end up in the Backrooms. This terminal aggregates verified spatial cartography, environmental hazards, and hostile biological entities documented by wandering operatives.",
-        statLevelsLabel: "Documented Sectors",
-        statLevelsUnit: "LEVELS",
-        statEntitiesLabel: "Cataloged Threats",
-        statEntitiesUnit: "ENTITIES",
-        statHumLabel: "Acoustic Hum",
-        statAnchorLabel: "Reality Anchor",
-        statAnchorVal: "ONLINE",
-        filterSub: "// DIRECTORY_QUERY_MODULE",
-        filterTitle: "SECTOR CLASSIFICATION FILTER",
-        searchPlaceholder: "SEARCH LEVEL OR KEYWORD...",
-        clearBtn: "[CLR]",
-        allSectorsBtn: "ALL SECTORS",
-        dangerLabels: {
-          SAFE: "SAFE",
-          UNSTABLE: "UNSTABLE",
-          DANGEROUS: "DANGEROUS",
-          HOSTILE: "HOSTILE",
-          DEADLY: "DEADLY"
-        },
-        zeroRecordsTitle: "// ZERO RECORDS MATCHING FILTER CRITERIA",
-        zeroRecordsSub: "The requested sector either does not exist or has been expunged from M.E.G. servers.",
-        resetFilterBtn: "[RESET FILTER PARAMETERS]",
-        cardSurvival: "SURVIVAL",
-        cardEntities: "ENTITIES",
-        cardFileId: "FILE_ID",
-        cardAccess: "ACCESS DOSSIER",
-        codexSub: "// BIOLOGICAL_THREAT_REGISTRY",
-        codexTitle: "DOCUMENTED ENTITIES",
-        codexHint: "Click any entity below or inside a Level Dossier to inspect biological threat data.",
-        threatSuffix: "THREAT",
-        footerLeft: "MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL",
-        footerRight: "ENCRYPTED CONNECTION // NO-CLIP TELEMETRY SYNCHRONIZED",
-        modalSectorDossier: "// SECTOR DOSSIER",
-        modalCloseEsc: "[ESC / CLOSE X]",
-        modalDangerPrefix: "DANGER",
-        modalSurvivalProb: "ESTIMATED SURVIVAL PROBABILITY",
-        modalBiomeLabel: "PRIMARY BIOME / ARCHITECTURE",
-        modalExitsLabel: "VERIFIED EXITS & TRANSITIONS",
-        modalEnvDesc: "// ENVIRONMENTAL_DESCRIPTION & ANOMALOUS PROPERTIES",
-        modalConfirmedEntities: "// CONFIRMED HOSTILE ENTITIES IN THIS SECTOR",
-        modalClickEntityHint: "[CLICK ENTITY TO INSPECT]",
-        modalFileBtn: "[FILE \u2192]",
-        modalFooterVerified: "ARCHIVE LOG // VERIFIED BY M.E.G. CARTOGRAPHY",
-        modalCloseDossier: "[CLOSE DOSSIER]",
-        entityModalHeader: "// BIOLOGICAL THREAT FILE",
-        entityModalReturn: "[RETURN / X]",
-        entityFullFrame: "FULL FRAME",
-        entityCropView: "CROP VIEW",
-        entityThreatPrefix: "THREAT",
-        entityPrimaryHabitat: "PRIMARY HABITAT",
-        entityFieldObs: "// FIELD OBSERVATIONS & DESCRIPTION",
-        entitySurvivalProtocol: "// M.E.G. SURVIVAL PROTOCOL & COUNTERMEASURES",
-        entityAckClose: "[ACKNOWLEDGE & CLOSE FILE]"
-      },
-      ru: {
-        osVersion: "M.E.G. АРХИВ_ОС v4.09",
-        clearance: "ДОПУСК: УРОВЕНЬ-4 [СМОТРИТЕЛЬ]",
-        entityIndexBtn: "ИНДЕКС_СУЩНОСТЕЙ",
-        heroBadge: "// ТЕРМИНАЛ НЕЕВКЛИДОВОЙ БАЗЫ ДАННЫХ",
-        heroTitle1: "АРХИВ",
-        heroTitle2: "ЗАКУЛИСЬЯ",
-        heroSubtitle: "Выживай. Документируй. Архив.",
-        heroDesc: "Если вы не будете осторожны и выпадете из реальности (no-clip) в неподходящем месте, вы окажетесь в Закулисье (Backrooms). Этот терминал собирает проверенную пространственную картографию, природные аномалии и досье враждебных биологических сущностей, задокументированных странниками.",
-        statLevelsLabel: "Изучено секторов",
-        statLevelsUnit: "УРОВНЕЙ",
-        statEntitiesLabel: "Записано угроз",
-        statEntitiesUnit: "СУЩНОСТЕЙ",
-        statHumLabel: "Гул ламп",
-        statAnchorLabel: "Якорь реальности",
-        statAnchorVal: "В СЕТИ",
-        filterSub: "// МОДУЛЬ_ПОИСКА_ДИРЕКТОРИЙ",
-        filterTitle: "ФИЛЬТР КЛАССИФИКАЦИИ СЕКТОРОВ",
-        searchPlaceholder: "ПОИСК УРОВНЯ ИЛИ СЛОВА...",
-        clearBtn: "[СБР]",
-        allSectorsBtn: "ВСЕ СЕКТОРЫ",
-        dangerLabels: {
-          SAFE: "БЕЗОПАСНО",
-          UNSTABLE: "НЕСТАБИЛЬНО",
-          DANGEROUS: "ОПАСНО",
-          HOSTILE: "ВРАЖДЕБНО",
-          DEADLY: "СМЕРТЕЛЬНО"
-        },
-        zeroRecordsTitle: "// ЗАПИСЕЙ ПО ДАННОМУ ФИЛЬТРУ НЕ НАЙДЕНО",
-        zeroRecordsSub: "Запрошенный сектор не существует или был удалён с серверов Б.И.Г. (M.E.G.).",
-        resetFilterBtn: "[СБРОСИТЬ ПАРАМЕТРЫ ФИЛЬТРА]",
-        cardSurvival: "ВЫЖИВАНИЕ",
-        cardEntities: "СУЩНОСТИ",
-        cardFileId: "ФАЙЛ_ID",
-        cardAccess: "ОТКРЫТЬ ДОСЬЕ",
-        codexSub: "// РЕЕСТР_БИОЛОГИЧЕСКИХ_УГРОЗ",
-        codexTitle: "ЗАДОКУМЕНТИРОВАННЫЕ СУЩНОСТИ",
-        codexHint: "Нажмите на любую сущность ниже или внутри досье уровня для просмотра данных об угрозе.",
-        threatSuffix: "УГРОЗА",
-        footerLeft: "ПУБЛИЧНЫЙ ТЕРМИНАЛ Б.И.Г. (MAJOR EXPLORER GROUP)",
-        footerRight: "ЗАШИФРОВАННОЕ СОЕДИНЕНИЕ // ТЕЛЕМЕТРИЯ СИНХРОНИЗИРОВАНА",
-        modalSectorDossier: "// ДОСЬЕ СЕКТОРА",
-        modalCloseEsc: "[ESC / ЗАКРЫТЬ X]",
-        modalDangerPrefix: "ОПАСНОСТЬ",
-        modalSurvivalProb: "РАСЧЁТНАЯ ВЕРОЯТНОСТЬ ВЫЖИВАНИЯ",
-        modalBiomeLabel: "ОСНОВНОЙ БИОМ / АРХИТЕКТУРА",
-        modalExitsLabel: "ПОДТВЕРЖДЁННЫЕ ВЫХОДЫ И ПЕРЕХОДЫ",
-        modalEnvDesc: "// ОПИСАНИЕ СРЕДЫ И АНОМАЛЬНЫЕ СВОЙСТВА",
-        modalConfirmedEntities: "// ПОДТВЕРЖДЁННЫЕ ВРАЖДЕБНЫЕ СУЩНОСТИ В СЕКТОРЕ",
-        modalClickEntityHint: "[НАЖМИТЕ ДЛЯ ПРОСМОТРА]",
-        modalFileBtn: "[ДОСЬЕ \u2192]",
-        modalFooterVerified: "АРХИВНЫЙ ЛОГ // ПОДТВЕРЖДЕНО КАРТОГРАФИЕЙ Б.И.Г.",
-        modalCloseDossier: "[ЗАКРЫТЬ ДОСЬЕ]",
-        entityModalHeader: "// ДОСЬЕ БИОЛОГИЧЕСКОЙ УГРОЗЫ",
-        entityModalReturn: "[НАЗАД / X]",
-        entityFullFrame: "ВЕСЬ КАДР",
-        entityCropView: "ПОРТРЕТ",
-        entityThreatPrefix: "УГРОЗА",
-        entityPrimaryHabitat: "ОСНОВНОЙ АРЕАЛ ОБИТАНИЯ",
-        entityFieldObs: "// ПОЛЕВЫЕ НАБЛЮДЕНИЯ И ОПИСАНИЕ",
-        entitySurvivalProtocol: "// ПРОТОКОЛ ВЫЖИВАНИЯ И КОНТРМЕРЫ Б.И.Г.",
-        entityAckClose: "[ПРИНЯТЬ К СВЕДЕНИЮ И ЗАКРЫТЬ]"
-      }
-    };
-
-    // ============================================================================
-    // ENTITIES DATABASE (7 Monsters in images/ folder with EN & RU data)
-    // ============================================================================
-    const ENTITIES = [
+    const RAW_ENTITIES = [
       {
         id: "bacteria",
         name: "Bacteria (Lifeform)",
@@ -407,8 +630,8 @@
         classification_ru: "Сущность 008 // Четвероногий падальщик",
         threatLevel: "MODERATE-HIGH",
         threat_ru: "СРЕДНЕ-ВЫСОКАЯ",
-        habitat: "Level 1, Level 2, Level 4, Level 9",
-        habitat_ru: "Уровень 1, Уровень 2, Уровень 4, Уровень 9",
+        habitat: "Level 1, Level 2, Level 4, Level 5, Level 8, Level 9",
+        habitat_ru: "Уровень 1, Уровень 2, Уровень 4, Уровень 5, Уровень 8, Уровень 9",
         image: "images/entity-hound.jpg",
         imagePosition: "center 20%",
         description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts.",
@@ -483,13 +706,64 @@
         description_ru: "Невидимая глазу бактерия, процветающая в нехлорированных, погружённых во мрак глубинах нижних подземных резервуаров Уровня 37. При вдыхании тёплого тумана или попадании воды в открытые царапины вызывает тяжёлый бред, лихорадку, переохлаждение и отёк лёгких в течение нескольких часов.",
         survivalTip: "Only wade through brightly lit, chlorinated turquoise pools in Level 37. Boil all collected water and ration Almond Water to purge early infection.",
         survivalTip_ru: "Передвигайтесь только по ярко освещённым бирюзовым бассейнам с запахом хлора. Кипятите любую воду и пейте Миндальную воду при первых симптомах."
+      },
+      // 6.1. Deathmoths
+      {
+        id: "deathmoths",
+        name: "Deathmoths",
+        name_ru: "Смертельные мотыльки (Deathmoths)",
+        classification: "Entity 004 // Photosensitive Aerial Predator",
+        classification_ru: "Сущность 004 // Светочувствительный хищник",
+        threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 5, Level 1",
+        habitat_ru: "Уровень 5, Уровень 1",
+        image: createTerminalPlaceholder("ENTITY 004 // DEATHMOTHS", "1.5M WINGSPAN // TOXIC POLLEN", "#ef4444"),
+        imagePosition: "center center",
+        description: "Giant nocturnal insects with a wingspan reaching 1.5 meters. While male Deathmoths are relatively docile, the massive females residing in Level 5 are fiercely aggressive, flying directly toward any artificial light source. Their wings shed a dense cloud of neurotoxic pollen and they are capable of spitting corrosive acid.",
+        description_ru: "Огромные насекомые с размахом крыльев до 1.5 метров. Летят прямо на любой источник света. Их крылья покрыты высокотоксичной пыльцой, вызывающей паралич дыхания, а взрослые особи способны плеваться едкой кислотой.",
+        survivalTip: "Switch off all flashlights and phone screens immediately when you hear heavy wingbeats. Duck behind solid furniture until the swarm passes.",
+        survivalTip_ru: "Чтобы спастись — немедленно выключите свет (фонарики, экраны) при звуке тяжёлых взмахов крыльев и замрите в укрытии."
+      },
+      // 6.2. Whisperers
+      {
+        id: "whisperers",
+        name: "Whisperers",
+        name_ru: "Шептуны (Whisperers)",
+        classification: "Entity 066 // Blind Acoustic Hunter",
+        classification_ru: "Сущность 066 // Слепые охотники",
+        threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 6",
+        habitat_ru: "Уровень 6",
+        image: createTerminalPlaceholder("ENTITY 066 // WHISPERERS", "ACoustIC MIMICRY // LEVEL 6", "#ef4444"),
+        imagePosition: "center center",
+        description: "Unseen entities dwelling within the absolute pitch-black darkness of Level 6. Completely blind, they navigate via hyper-sensitive echolocation and auditory mimicry—whispering your name, childhood memories, and familiar voices right beside your ear to trick you into speaking. If you answer a whisper, they pinpoint and attack instantly.",
+        description_ru: "Сущности, обитающие в абсолютной тьме Уровня 6. Полностью слепые охотники, ориентирующиеся исключительно на слух. Они шепчут прямо над ухом имена близких и фразы из твоей жизни, чтобы спровоцировать тебя на ответ. Если ответишь — мгновенно атакуют.",
+        survivalTip: "Maintain absolute silence in Level 6. Tape your mouth if experiencing auditory hallucinations, and never reply to voices calling your name in the dark.",
+        survivalTip_ru: "Храните гробовое молчание на Уровне 6. Ни при каких обстоятельствах не отвечайте на голоса, зовущие вас по имени из темноты."
+      },
+      // 6.3. Cave Spiders
+      {
+        id: "cave-spiders",
+        name: "Cave Spiders",
+        name_ru: "Пещерные пауки (Cave Spiders)",
+        classification: "Entity 082 // Blind Vibration Arachnid",
+        classification_ru: "Сущность 082 // Слепой охотник",
+        threatLevel: "LETHAL",
+        threat_ru: "СМЕРТЕЛЬНАЯ",
+        habitat: "Level 8",
+        habitat_ru: "Уровень 8",
+        image: createTerminalPlaceholder("ENTITY 082 // CAVE SPIDERS", "SEISMIC VIBRATION HUNTER", "#ef4444"),
+        imagePosition: "center center",
+        description: "Massive, eyeless arachnids with pitch-black chitinous carapaces that blend seamlessly into the stalactites of Level 8. They crawl silently across cavern ceilings and detect prey exclusively through seismic vibrations in the rock and webbing. Their venom liquefies internal organs within minutes.",
+        description_ru: "Гигантские слепые пауки, чувствующие малейшие вибрации камня и паутины. Бесшумно передвигаются по сводам и потолку пещер Уровня 8 и атакуют сверху.",
+        survivalTip: "If you hear rapid mandibles clicking above you — freeze completely and hold your breath. Do not take a single step until the clicking fades away.",
+        survivalTip_ru: "Если услышишь характерное щёлканье жвал над головой — замри и вообще не двигайся, пока звук полностью не стихнет."
       }
     ];
 
-    // ============================================================================
-    // LEVELS DATABASE (8 Iconic Backrooms Levels in images/ folder with EN & RU)
-    // ============================================================================
-    const LEVELS = [
+    const RAW_LEVELS = [
       {
         id: "level-0",
         code: "LEVEL 0",
@@ -570,6 +844,69 @@
         description_ru: "Уровень 4 напоминает современное офисное здание, почти полностью лишённое мебели, за исключением редких перегородок, кулеров и торговых автоматов, заполненных Миндальной водой. Это самое безопасное место для отдыха и восстановления рассудка. Хотя вдоль стен расположены окна, за ними всегда идёт густой искусственный ливень — странникам категорически запрещено приближаться к окнам, которые выглядят чистыми или открытыми.",
         entities: ["hound"]
       },
+      // 5.1. Level 5 — Terror Hotel
+      {
+        id: "level-5",
+        code: "LEVEL 5",
+        name: "Level 5 — \"Terror Hotel\"",
+        name_ru: "Уровень 5 — «Отель Ужаса» (Terror Hotel)",
+        danger: "DANGEROUS",
+        survivalRate: "42%",
+        classInfo: "Class 3 // Auditory & Psycho-Spatial Hazard",
+        subtitle_ru: "Класс 3 // Психо-пространственная угроза",
+        biome: "Infinite 1920s Art-Deco Luxury Hotel",
+        biome_ru: "Бесконечный винтажный отель 1920-х годов",
+        exits: "Entering the boiler room service doors leads to Level 2; dark stairwells descend to Level 6.",
+        exits_ru: "Служебные двери через бойлерную ведут на Уровень 2; тёмные лестницы уходят вниз на Уровень 6.",
+        image: createTerminalPlaceholder("LEVEL 5 // TERROR HOTEL", "1920s BALLROOM // DO NOT LOOK IN MIRRORS", "#f97316"),
+        shortDesc: "An endless 1920s hotel where maddening vintage jazz plays and phantom banquets echo behind locked doors.",
+        shortDesc_ru: "Бесконечный отель 1920-х годов с сводящим с ума джазом, петляющими коридорами и опасными зеркалами.",
+        description: "An infinite ornate hotel frozen in the 1920s aesthetic, complete with mahogany paneling, brass chandeliers, and vintage wallpaper that seems to watch passersby. Distorted phonograph jazz echoes endlessly through looping corridors, slowly eroding sanity. Behind locked mahogany doors, the clinking of glasses and muffled chatter of an eternal banquet can be heard. Mirrors throughout Level 5 are anomalous and hazardous—never gaze into your reflection for more than two seconds.",
+        description_ru: "Бесконечный отель 1920-х годов, оформленный красным деревом, бархатом и старинными люстрами. Повсюду играет расстроенный винтажный джаз, постепенно сводящий с ума. Коридоры неевклидово петляют, а за запертыми дверями номеров и залов постоянно слышны глухие звуки оживлённого банкета и звон бокалов. Зеркала на этом уровне крайне опасны — никогда не всматривайтесь в своё отражение.",
+        entities: ["deathmoths", "hound"]
+      },
+      // 5.2. Level 6 — Lights Out
+      {
+        id: "level-6",
+        code: "LEVEL 6",
+        name: "Level 6 — \"Lights Out\"",
+        name_ru: "Уровень 6 — «Свет погас» (Lights Out)",
+        danger: "UNSTABLE",
+        survivalRate: "31%",
+        classInfo: "Class 4 // Total Photonic Void",
+        subtitle_ru: "Класс 4 // Абсолютная световая пустота",
+        biome: "Pitch-Black Metal & Concrete Labyrinth",
+        biome_ru: "Погружённый в абсолютную тьму лабиринт",
+        exits: "Tripping down unseen stone chutes drops wanderers into the caverns of Level 8.",
+        exits_ru: "Случайный провал в каменные расщелины в полу переносит странника в пещеры Уровня 8.",
+        image: createTerminalPlaceholder("LEVEL 6 // LIGHTS OUT", "ZERO VISIBILITY // DO NOT ANSWER WHISPERS", "#f5be0b"),
+        shortDesc: "Absolute pitch darkness where flashlights pierce no further than two meters and unseen voices whisper your name.",
+        shortDesc_ru: "Абсолютная тьма, где свет фонарика не пробивает дальше двух метров, а сущности охотятся на звук.",
+        description: "Level 6 is an expansive, claustrophobic network of cold brickwork and metal corridors shrouded in supernatural darkness. Even the most powerful tactical flashlights fail to illuminate further than two meters ahead before light is swallowed by the void. Entities here are completely blind and hunt purely by sound, mimicking familiar voices and whispering secrets in the dark. If you respond to a whisper, they will find you immediately.",
+        description_ru: "Абсолютная, непроглядная тьма. Даже самый мощный фонарик не проникает дальше двух метров — свет словно поглощается самим воздухом. Обитающие здесь сущности ориентируются исключительно на слух и постоянно провоцируют путников шёпотом. Главное правило выживания: если ответишь на шёпот — тебя сразу же найдут.",
+        entities: ["whisperers"]
+      },
+      // 5.3. Level 8 — Cave Systems
+      {
+        id: "level-8",
+        code: "LEVEL 8",
+        name: "Level 8 — \"Cave Systems\"",
+        name_ru: "Уровень 8 — «Пещерные системы» (Cave Systems)",
+        danger: "HOSTILE",
+        survivalRate: "18%",
+        classInfo: "Class 5 // Arachnid Infestation & Gravity Flux",
+        subtitle_ru: "Класс 5 // Кишащие пауками пещеры",
+        biome: "Infinite Subterranean Obsidian Caverns",
+        biome_ru: "Бесконечные чёрные подземные пещеры",
+        exits: "Climbing illuminated concrete shafts can lead onto the streets of Level 9.",
+        exits_ru: "Подъём по бетонным коллекторным шахтам может вывести на ночные улицы Уровня 9.",
+        image: createTerminalPlaceholder("LEVEL 8 // CAVE SYSTEMS", "GRAVITY ANOMALY // ARACHNID HIVE", "#ef4444"),
+        shortDesc: "Endless black subterranean caverns plagued by temporal/gravitational anomalies and venomous vibration-hunting spiders.",
+        shortDesc_ru: "Бесконечные чёрные пещеры с искажением времени и гравитации, населённые ядовитыми слепыми пауками.",
+        description: "Level 8 consists of a colossal subterranean labyrinth of damp black limestone, razor-sharp stalagmites, and glowing mineral veins. Time and gravity behave erratically across deeper chasms, causing loose stones to fall upward or sideways. The entire cave network is coated in thick, cable-like webbing spun by venomous Cave Spiders that detect even the slightest footstep vibration.",
+        description_ru: "Бесконечные чёрные пещеры, уходящие на сотни километров вглубь. На уровне фиксируются сильные искажения времени и локальные аномалии гравитации. Своды оплетены густой паутиной, а в темноте охотятся гигантские ядовитые пауки, мгновенно реагирующие на любые вибрации камня и шаги.",
+        entities: ["cave-spiders", "hound"]
+      },
       {
         id: "level-37",
         code: "LEVEL 37",
@@ -611,7 +948,7 @@
         entities: ["smiler", "skin-stealer", "hound"]
       },
       {
-        id: "level-run",
+        id: "level-!",
         code: "LEVEL !",
         name: "Level ! — \"Run For Your Life!\"",
         name_ru: "Уровень ! — «Беги ради жизни!»",
@@ -649,8 +986,200 @@
         description: "Despite frequent attempts by the Partygoers to overwrite this database entry with invitations to a 'harmless celebration =)', M.E.G. High Command classifies Level Fun as an extreme Hostile Hive. The environment resembles a nostalgic 1990s children's birthday parlor complete with plastic play-tubes, confetti, and distorted calliope music playing over intercoms. Entry into this level via no-clipping under tables in Level 1 or Level 0 is considered almost impossible to escape.",
         description_ru: "Несмотря на постоянные хакерские попытки Тусовщиков переписать эту страницу приглашениями на «безопасный праздник с тортиками =)», командование Б.И.Г. классифицирует Уровень Веселья как смертельно опасный Улей. Помещения выглядят как детский развлекательный центр из 1990-х с пластиковыми лабиринтами, конфетти и искажённой шарманкой из динамиков. Попадание сюда почти не оставляет шансов на возвращение.",
         entities: ["partygoer"]
+      },
+      // 5.4. Level 666 — Welcome to Hell
+      {
+        id: "level-666",
+        code: "LEVEL 666",
+        name: "Level 666 — \"Welcome to Hell\"",
+        name_ru: "Уровень 666 — «Добро пожаловать в ад» (Welcome to Hell)",
+        danger: "DEADLY",
+        survivalRate: "0%",
+        classInfo: "Class Omega // Cognitive Lethal Anomaly",
+        subtitle_ru: "Класс Омега // Смертельная ментальная аномалия",
+        biome: "Infinite Crimson Torii Gate Corridor",
+        biome_ru: "Бесконечный коридор из багровых ворот Тории",
+        exits: "NONE VERIFIED. No wanderer has ever returned past the 500-meter threshold.",
+        exits_ru: "ВЫХОДОВ НЕ ОБНАРУЖЕНО. Ни один странник не вернулся после отметки в 500 метров.",
+        image: createTerminalPlaceholder("LEVEL 666 // WELCOME TO HELL", "SURVIVAL RATE: 0% // COGNITIVE HAZARD", "#e11d48", "#18060a"),
+        shortDesc: "An endless corridor of crimson Japanese Torii gates where the level itself manifests your deepest personal hell.",
+        shortDesc_ru: "Бесконечный коридор из японских ворот Тории, где сам уровень материализует личный ад каждого путника.",
+        description: "Level 666 appears as an endless stone pathway framed by thousands of vermilion Japanese Torii gates under a blood-red sky. There are no biological entities native to this sector—the environment itself is the executioner. With every step forward, the level probes the wanderer's subconscious, manifesting hyper-realistic auditory and visual hallucinations of their worst traumas, phobias, and guilt. Even hostile Backrooms entities accidentally no-clipping here lose their minds and perish within minutes.",
+        description_ru: "Бесконечный коридор из тысяч багровых японских ворот Тории, уходящий в кровавый туман. Здесь нет обычных монстров — сам уровень убивает каждого вошедшего. Пространство считывает подсознание человека, и каждый видит свой личный ад наяву: материализуются самые жуткие страхи, фобии и чувство вины. Даже враждебные сущности Закулисья, случайно попавшие сюда, сходят с ума и погибают.",
+        entities: []
       }
     ];
+
+    // Helper to localize level & entity arrays into SITE_DATA.en and SITE_DATA.ru
+    const localizeLevels = (isRu) =>
+      RAW_LEVELS.map((lvl) => ({
+        ...lvl,
+        name: isRu ? lvl.name_ru : lvl.name,
+        classInfo: isRu ? lvl.subtitle_ru : lvl.classInfo,
+        biome: isRu ? lvl.biome_ru : lvl.biome,
+        exits: isRu ? lvl.exits_ru : lvl.exits,
+        shortDesc: isRu ? lvl.shortDesc_ru : lvl.shortDesc,
+        description: isRu ? lvl.description_ru : lvl.description,
+        searchBlob: `${lvl.code} ${lvl.name} ${lvl.name_ru} ${lvl.shortDesc} ${lvl.shortDesc_ru} ${lvl.description} ${lvl.description_ru}`.toLowerCase()
+      }));
+
+    const localizeEntities = (isRu) =>
+      RAW_ENTITIES.map((ent) => ({
+        ...ent,
+        name: isRu ? ent.name_ru : ent.name,
+        classification: isRu ? ent.classification_ru : ent.classification,
+        threatLevel: isRu ? ent.threat_ru : ent.threatLevel,
+        habitat: isRu ? ent.habitat_ru : ent.habitat,
+        description: isRu ? ent.description_ru : ent.description,
+        survivalTip: isRu ? ent.survivalTip_ru : ent.survivalTip
+      }));
+
+    const SITE_DATA = {
+      en: {
+        levels: localizeLevels(false),
+        entities: localizeEntities(false),
+        ui: {
+          osVersion: "M.E.G. ARCHIVE_OS v4.20",
+          clearance: "CLEARANCE: LEVEL-4 [OVERSEER]",
+          audioOn: "[ 🔊 AUDIO: ON ]",
+          audioOff: "[ 🔊 AUDIO: OFF ]",
+          randomFileBtn: "[ 🎲 RANDOM FILE ]",
+          entityIndexBtn: "ENTITY_INDEX",
+          heroBadge: "// NON-EUCLIDEAN DATABASE TERMINAL",
+          heroTitle1: "THE BACKROOMS",
+          heroTitle2: "ARCHIVE",
+          heroSubtitle: "Survive. Document. Archive.",
+          heroDesc: "If you are not careful and you no-clip out of reality in the wrong areas, you will end up in the Backrooms. This terminal aggregates verified spatial cartography, environmental hazards, and hostile biological entities documented by wandering operatives.",
+          statLevelsLabel: "Documented Sectors",
+          statLevelsUnit: "LEVELS",
+          statEntitiesLabel: "Cataloged Threats",
+          statEntitiesUnit: "ENTITIES",
+          statHumLabel: "Acoustic Hum",
+          statAnchorLabel: "Reality Anchor",
+          statAnchorVal: "ONLINE",
+          filterSub: "// DIRECTORY_QUERY_MODULE",
+          filterTitle: "SECTOR CLASSIFICATION FILTER",
+          searchPlaceholder: "SEARCH LEVEL OR KEYWORD...",
+          clearBtn: "[CLR]",
+          allSectorsBtn: "ALL SECTORS",
+          dangerLabels: {
+            SAFE: "SAFE",
+            UNSTABLE: "UNSTABLE",
+            DANGEROUS: "DANGEROUS",
+            HOSTILE: "HOSTILE",
+            DEADLY: "DEADLY"
+          },
+          zeroRecordsTitle: "// ZERO RECORDS MATCHING FILTER CRITERIA",
+          zeroRecordsSub: "The requested sector either does not exist or has been expunged from M.E.G. servers.",
+          resetFilterBtn: "[RESET FILTER PARAMETERS]",
+          cardSurvival: "SURVIVAL",
+          cardEntities: "ENTITIES",
+          cardFileId: "FILE_ID",
+          cardAccess: "ACCESS DOSSIER",
+          codexSub: "// BIOLOGICAL_THREAT_REGISTRY",
+          codexTitle: "DOCUMENTED ENTITIES",
+          codexHint: "Click any entity below or inside a Level Dossier to inspect biological threat data.",
+          threatSuffix: "THREAT",
+          footerLeft: "MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL",
+          footerRight: "ENCRYPTED CONNECTION // NO-CLIP TELEMETRY SYNCHRONIZED",
+          modalSectorDossier: "// SECTOR DOSSIER",
+          modalAudioPlaying: "SECTOR_AUDIO: ACTIVE",
+          modalCloseEsc: "[ESC / CLOSE X]",
+          modalDangerPrefix: "DANGER",
+          modalSurvivalProb: "ESTIMATED SURVIVAL PROBABILITY",
+          modalBiomeLabel: "PRIMARY BIOME / ARCHITECTURE",
+          modalExitsLabel: "VERIFIED EXITS & TRANSITIONS",
+          modalEnvDesc: "// ENVIRONMENTAL_DESCRIPTION & ANOMALOUS PROPERTIES",
+          modalConfirmedEntities: "// CONFIRMED HOSTILE ENTITIES IN THIS SECTOR",
+          modalNoEntities: "ZERO BIOLOGICAL ENTITIES DETECTED — THE ENVIRONMENT ITSELF IS LETHAL.",
+          modalClickEntityHint: "[CLICK ENTITY TO INSPECT]",
+          modalFileBtn: "[FILE \u2192]",
+          modalFooterVerified: "ARCHIVE LOG // VERIFIED BY M.E.G. CARTOGRAPHY",
+          modalCloseDossier: "[CLOSE DOSSIER]",
+          entityModalHeader: "// BIOLOGICAL THREAT FILE",
+          entityModalReturn: "[RETURN / X]",
+          entityFullFrame: "FULL FRAME",
+          entityCropView: "CROP VIEW",
+          entityThreatPrefix: "THREAT",
+          entityPrimaryHabitat: "PRIMARY HABITAT",
+          entityFieldObs: "// FIELD OBSERVATIONS & DESCRIPTION",
+          entitySurvivalProtocol: "// M.E.G. SURVIVAL PROTOCOL & COUNTERMEASURES",
+          entityAckClose: "[ACKNOWLEDGE & CLOSE FILE]"
+        }
+      },
+      ru: {
+        levels: localizeLevels(true),
+        entities: localizeEntities(true),
+        ui: {
+          osVersion: "M.E.G. АРХИВ_ОС v4.20",
+          clearance: "ДОПУСК: УРОВЕНЬ-4 [СМОТРИТЕЛЬ]",
+          audioOn: "[ 🔊 AUDIO: ON ]",
+          audioOff: "[ 🔊 AUDIO: OFF ]",
+          randomFileBtn: "[ 🎲 RANDOM FILE ]",
+          entityIndexBtn: "ИНДЕКС_СУЩНОСТЕЙ",
+          heroBadge: "// ТЕРМИНАЛ НЕЕВКЛИДОВОЙ БАЗЫ ДАННЫХ",
+          heroTitle1: "АРХИВ",
+          heroTitle2: "ЗАКУЛИСЬЯ",
+          heroSubtitle: "Выживай. Документируй. Архив.",
+          heroDesc: "Если вы не будете осторожны и выпадете из реальности (no-clip) в неподходящем месте, вы окажетесь в Закулисье (Backrooms). Этот терминал собирает проверенную пространственную картографию, природные аномалии и досье враждебных биологических сущностей, задокументированных странниками.",
+          statLevelsLabel: "Изучено секторов",
+          statLevelsUnit: "УРОВНЕЙ",
+          statEntitiesLabel: "Записано угроз",
+          statEntitiesUnit: "СУЩНОСТЕЙ",
+          statHumLabel: "Гул ламп",
+          statAnchorLabel: "Якорь реальности",
+          statAnchorVal: "В СЕТИ",
+          filterSub: "// МОДУЛЬ_ПОИСКА_ДИРЕКТОРИЙ",
+          filterTitle: "ФИЛЬТР КЛАССИФИКАЦИИ СЕКТОРОВ",
+          searchPlaceholder: "ПОИСК УРОВНЯ ИЛИ СЛОВА...",
+          clearBtn: "[СБР]",
+          allSectorsBtn: "ВСЕ СЕКТОРЫ",
+          dangerLabels: {
+            SAFE: "БЕЗОПАСНО",
+            UNSTABLE: "НЕСТАБИЛЬНО",
+            DANGEROUS: "ОПАСНО",
+            HOSTILE: "ВРАЖДЕБНО",
+            DEADLY: "СМЕРТЕЛЬНО"
+          },
+          zeroRecordsTitle: "// ЗАПИСЕЙ ПО ДАННОМУ ФИЛЬТРУ НЕ НАЙДЕНО",
+          zeroRecordsSub: "Запрошенный сектор не существует или был удалён с серверов Б.И.Г. (M.E.G.).",
+          resetFilterBtn: "[СБРОСИТЬ ПАРАМЕТРЫ ФИЛЬТРА]",
+          cardSurvival: "ВЫЖИВАНИЕ",
+          cardEntities: "СУЩНОСТИ",
+          cardFileId: "ФАЙЛ_ID",
+          cardAccess: "ОТКРЫТЬ ДОСЬЕ",
+          codexSub: "// РЕЕСТР_БИОЛОГИЧЕСКИХ_УГРОЗ",
+          codexTitle: "ЗАДОКУМЕНТИРОВАННЫЕ СУЩНОСТИ",
+          codexHint: "Нажмите на любую сущность ниже или внутри досье уровня для просмотра данных об угрозе.",
+          threatSuffix: "УГРОЗА",
+          footerLeft: "ПУБЛИЧНЫЙ ТЕРМИНАЛ Б.И.Г. (MAJOR EXPLORER GROUP)",
+          footerRight: "ЗАШИФРОВАННОЕ СОЕДИНЕНИЕ // ТЕЛЕМЕТРИЯ СИНХРОНИЗИРОВАНА",
+          modalSectorDossier: "// ДОСЬЕ СЕКТОРА",
+          modalAudioPlaying: "АУДИО_СЕКТОРА: АКТИВНО",
+          modalCloseEsc: "[ESC / ЗАКРЫТЬ X]",
+          modalDangerPrefix: "ОПАСНОСТЬ",
+          modalSurvivalProb: "РАСЧЁТНАЯ ВЕРОЯТНОСТЬ ВЫЖИВАНИЯ",
+          modalBiomeLabel: "ОСНОВНОЙ БИОМ / АРХИТЕКТУРА",
+          modalExitsLabel: "ПОДТВЕРЖДЁННЫЕ ВЫХОДЫ И ПЕРЕХОДЫ",
+          modalEnvDesc: "// ОПИСАНИЕ СРЕДЫ И АНОМАЛЬНЫЕ СВОЙСТВА",
+          modalConfirmedEntities: "// ПОДТВЕРЖДЁННЫЕ ВРАЖДЕБНЫЕ СУЩНОСТИ В СЕКТОРЕ",
+          modalNoEntities: "БИОЛОГИЧЕСКИХ СУЩНОСТЕЙ НЕ ОБНАРУЖЕНО — САМА СРЕДА УРОВНЯ СМЕРТОНОСНА.",
+          modalClickEntityHint: "[НАЖМИТЕ ДЛЯ ПРОСМОТРА]",
+          modalFileBtn: "[ДОСЬЕ \u2192]",
+          modalFooterVerified: "АРХИВНЫЙ ЛОГ // ПОДТВЕРЖДЕНО КАРТОГРАФИЕЙ Б.И.Г.",
+          modalCloseDossier: "[ЗАКРЫТЬ ДОСЬЕ]",
+          entityModalHeader: "// ДОСЬЕ БИОЛОГИКОЙ УГРОЗЫ",
+          entityModalReturn: "[НАЗАД / X]",
+          entityFullFrame: "ВЕСЬ КАДР",
+          entityCropView: "ПОРТРЕТ",
+          entityThreatPrefix: "УГРОЗА",
+          entityPrimaryHabitat: "ОСНОВНОЙ АРЕАЛ ОБИТАНИЯ",
+          entityFieldObs: "// ПОЛЕВЫЕ НАБЛЮДЕНИЯ И ОПИСАНИЕ",
+          entitySurvivalProtocol: "// ПРОТОКОЛ ВЫЖИВАНИЯ И КОНТРМЕРЫ Б.И.Г.",
+          entityAckClose: "[ПРИНЯТЬ К СВЕДЕНИЮ И ЗАКРЫТЬ]"
+        }
+      }
+    };
 
     // ============================================================================
     // DANGER CATEGORY CONFIGURATION
@@ -706,14 +1235,39 @@
           return "en";
         }
       });
+
+      // Audio state persisted in localStorage("backrooms_audio")
+      const [audioEnabled, setAudioEnabled] = useState(() => {
+        try {
+          return localStorage.getItem("backrooms_audio") === "true";
+        } catch (e) {
+          return false;
+        }
+      });
+
       const [selectedDanger, setSelectedDanger] = useState("ALL");
       const [searchQuery, setSearchQuery] = useState("");
-      const [activeLevel, setActiveLevel] = useState(null);
-      const [activeEntity, setActiveEntity] = useState(null);
+
+      // 1.2. Store IDs in state so switching language dynamically translates open modals
+      const [activeLevelId, setActiveLevelId] = useState(null);
+      const [activeEntityId, setActiveEntityId] = useState(null);
       const [entityFitMode, setEntityFitMode] = useState("cover");
       const [clock, setClock] = useState("00:00:00 LOCAL");
 
-      const t = UI_TEXT[lang] || UI_TEXT.en;
+      const currentSiteData = SITE_DATA[lang] || SITE_DATA.en;
+      const t = currentSiteData.ui;
+      const currentLevels = currentSiteData.levels;
+      const currentEntities = currentSiteData.entities;
+
+      // Resolve active modal objects dynamically from SITE_DATA[lang]
+      const activeLevel = useMemo(
+        () => currentLevels.find((l) => l.id === activeLevelId) || null,
+        [currentLevels, activeLevelId]
+      );
+      const activeEntity = useMemo(
+        () => currentEntities.find((e) => e.id === activeEntityId) || null,
+        [currentEntities, activeEntityId]
+      );
 
       const toggleLang = (nextLang) => {
         setLang(nextLang);
@@ -722,14 +1276,67 @@
         } catch (e) {}
       };
 
+      // Handle Audio Toggle & Persistence
+      const handleToggleAudio = () => {
+        const nextState = !audioEnabled;
+        setAudioEnabled(nextState);
+        try {
+          localStorage.setItem("backrooms_audio", String(nextState));
+        } catch (e) {}
+
+        if (nextState) {
+          soundEngine.start();
+          if (activeLevelId) {
+            soundEngine.playLevelAmbient(activeLevelId);
+          }
+        } else {
+          soundEngine.stop();
+        }
+      };
+
+      // Resume audio automatically on first user click if localStorage had backrooms_audio = true
+      useEffect(() => {
+        if (!audioEnabled) return;
+        soundEngine.start();
+        const unlockOnGesture = () => {
+          if (audioEnabled && (!soundEngine.ctx || soundEngine.ctx.state === "suspended")) {
+            soundEngine.start();
+            if (activeLevelId) soundEngine.playLevelAmbient(activeLevelId);
+          }
+        };
+        window.addEventListener("click", unlockOnGesture, { once: true });
+        return () => window.removeEventListener("click", unlockOnGesture);
+      }, []);
+
+      // 4. Play unique level sound when activeLevelId opens, stop when closed
+      useEffect(() => {
+        if (activeLevelId && audioEnabled) {
+          soundEngine.playLevelAmbient(activeLevelId);
+        } else {
+          soundEngine.stopLevelAmbient();
+        }
+      }, [activeLevelId, audioEnabled]);
+
+      // 3. Random Level Selector
+      const handleOpenRandomLevel = () => {
+        if (!currentLevels.length) return;
+        const pool =
+          currentLevels.length > 1 && activeLevelId
+            ? currentLevels.filter((l) => l.id !== activeLevelId)
+            : currentLevels;
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        setActiveEntityId(null);
+        setActiveLevelId(pool[randomIndex].id);
+      };
+
       // Reset fit mode whenever a new entity is opened
       useEffect(() => {
-        if (activeEntity) {
+        if (activeEntityId) {
           setEntityFitMode("cover");
         }
-      }, [activeEntity]);
+      }, [activeEntityId]);
 
-      // Terminal live clock using exact user local system time (fixes 3-hour UTC offset)
+      // Terminal live clock using exact user local system time
       useEffect(() => {
         const pad = (n) => String(n).padStart(2, "0");
         const updateClock = () => {
@@ -747,41 +1354,33 @@
         return () => clearInterval(interval);
       }, []);
 
-      // Close modals with Escape key (closes Monster Modal first, then Level Modal)
+      // 1.1. ESC-key: close ONLY the topmost modal using else if
       useEffect(() => {
         const handleKeyDown = (e) => {
           if (e.key === "Escape") {
-            if (activeEntity) {
-              setActiveEntity(null);
-            } else if (activeLevel) {
-              setActiveLevel(null);
+            if (activeEntityId) {
+              setActiveEntityId(null);
+            } else if (activeLevelId) {
+              setActiveLevelId(null);
             }
           }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-      }, [activeLevel, activeEntity]);
+      }, [activeEntityId, activeLevelId]);
 
-      // Filtered levels based on category button & bilingual search input (EN + RU)
+      // Filtered levels based on category button & bilingual search input
       const filteredLevels = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        return LEVELS.filter((lvl) => {
+        return currentLevels.filter((lvl) => {
           const matchesDanger = selectedDanger === "ALL" || lvl.danger === selectedDanger;
           if (!q) return matchesDanger;
-          const matchesQuery =
-            lvl.name.toLowerCase().includes(q) ||
-            (lvl.name_ru && lvl.name_ru.toLowerCase().includes(q)) ||
-            lvl.description.toLowerCase().includes(q) ||
-            (lvl.description_ru && lvl.description_ru.toLowerCase().includes(q)) ||
-            lvl.shortDesc.toLowerCase().includes(q) ||
-            (lvl.shortDesc_ru && lvl.shortDesc_ru.toLowerCase().includes(q)) ||
-            lvl.code.toLowerCase().includes(q);
-          return matchesDanger && matchesQuery;
+          return matchesDanger && lvl.searchBlob.includes(q);
         });
-      }, [selectedDanger, searchQuery]);
+      }, [currentLevels, selectedDanger, searchQuery]);
 
-      // Helper to find an entity object by ID
-      const getEntityById = (id) => ENTITIES.find((ent) => ent.id === id);
+      // Helper to find an entity object by ID in the current language
+      const getEntityById = (id) => currentEntities.find((ent) => ent.id === id);
 
       return (
         <div className="min-h-screen flex flex-col bg-[#070709] text-zinc-200 relative z-10">
@@ -794,11 +1393,33 @@
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
                   {t.osVersion}
                 </span>
-                <span className="hidden lg:inline text-zinc-500">{t.clearance}</span>
+                <span className="hidden xl:inline text-zinc-500">{t.clearance}</span>
               </div>
 
-              <div className="flex items-center gap-3 sm:gap-4 text-zinc-400">
-                <span className="hidden sm:inline text-amber-400/90 font-mono">{clock}</span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-zinc-400">
+                <span className="hidden lg:inline text-amber-400/90 font-mono">{clock}</span>
+
+                {/* 2. AUDIO TOGGLE BUTTON */}
+                <button
+                  type="button"
+                  onClick={handleToggleAudio}
+                  className={`px-2.5 py-1 text-[11px] font-bold tracking-widest border transition-all ${
+                    audioEnabled
+                      ? "bg-amber-400 text-black border-amber-300 shadow-[0_0_15px_rgba(245,190,11,0.4)]"
+                      : "bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-amber-400/60 hover:text-amber-300"
+                  }`}
+                >
+                  {audioEnabled ? t.audioOn : t.audioOff}
+                </button>
+
+                {/* 3. RANDOM FILE BUTTON */}
+                <button
+                  type="button"
+                  onClick={handleOpenRandomLevel}
+                  className="px-2.5 py-1 text-[11px] font-bold tracking-widest bg-zinc-950 text-amber-400 border border-amber-500/50 hover:bg-amber-400 hover:text-black transition-all"
+                >
+                  {t.randomFileBtn}
+                </button>
 
                 <button
                   onClick={() => {
@@ -807,7 +1428,7 @@
                   }}
                   className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden md:inline"
                 >
-                  [{t.entityIndexBtn}: {ENTITIES.length}]
+                  [{t.entityIndexBtn}: {currentEntities.length}]
                 </button>
 
                 {/* LANGUAGE SWITCHER [EN | RU] */}
@@ -842,7 +1463,6 @@
 
           {/* 1. HERO SECTION */}
           <section className="relative border-b border-zinc-800 overflow-hidden">
-            {/* Hero Background Image with Dark Gradient Overlay & Automatic Fallback */}
             <ArchiveImage
               src={HERO_BG_URL}
               alt="Backrooms Hero Background"
@@ -875,11 +1495,11 @@
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
                     <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statLevelsLabel}</div>
-                    <div className="text-xl font-bold text-amber-400 mt-0.5">{LEVELS.length} {t.statLevelsUnit}</div>
+                    <div className="text-xl font-bold text-amber-400 mt-0.5">{currentLevels.length} {t.statLevelsUnit}</div>
                   </div>
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
                     <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statEntitiesLabel}</div>
-                    <div className="text-xl font-bold text-red-400 mt-0.5">{ENTITIES.length} {t.statEntitiesUnit}</div>
+                    <div className="text-xl font-bold text-red-400 mt-0.5">{currentEntities.length} {t.statEntitiesUnit}</div>
                   </div>
                   <div className="bg-zinc-950/80 border border-zinc-800 p-3">
                     <div className="text-[10px] text-zinc-500 uppercase tracking-widest">{t.statHumLabel}</div>
@@ -939,12 +1559,12 @@
                       : "bg-zinc-950 text-zinc-300 border-zinc-700 hover:border-amber-400/60 hover:text-amber-300"
                   }`}
                 >
-                  [{t.allSectorsBtn}: {LEVELS.length}]
+                  [{t.allSectorsBtn}: {currentLevels.length}]
                 </button>
 
                 {DANGER_CATEGORIES.map((category) => {
                   const isActive = selectedDanger === category;
-                  const count = LEVELS.filter((l) => l.danger === category).length;
+                  const count = currentLevels.filter((l) => l.danger === category).length;
                   const style = DANGER_STYLES[category];
 
                   return (
@@ -994,14 +1614,11 @@
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredLevels.map((level) => {
                     const dangerStyle = DANGER_STYLES[level.danger];
-                    const levelName = lang === "ru" ? level.name_ru : level.name;
-                    const levelClassInfo = lang === "ru" ? level.subtitle_ru : level.classInfo;
-                    const levelShortDesc = lang === "ru" ? level.shortDesc_ru : level.shortDesc;
 
                     return (
                       <article
                         key={level.id}
-                        onClick={() => setActiveLevel(level)}
+                        onClick={() => setActiveLevelId(level.id)}
                         className="terminal-box corner-accent group cursor-pointer flex flex-col justify-between overflow-hidden"
                       >
                         <div>
@@ -1009,9 +1626,9 @@
                           <div className="relative h-48 w-full overflow-hidden bg-zinc-950 border-b border-zinc-800">
                             <ArchiveImage
                               src={level.image}
-                              alt={levelName}
+                              alt={level.name}
                               fallbackTitle={level.code}
-                              fallbackSubtitle={levelName}
+                              fallbackSubtitle={level.name}
                               accentColor="#f5be0b"
                               style={{ objectPosition: level.imagePosition || "center center" }}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85 group-hover:opacity-100"
@@ -1044,13 +1661,13 @@
                           {/* Card Body */}
                           <div className="p-5">
                             <div className="text-[11px] text-zinc-500 uppercase tracking-widest mb-1">
-                              {levelClassInfo}
+                              {level.classInfo}
                             </div>
                             <h3 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors tracking-wide mb-2.5">
-                              {levelName}
+                              {level.name}
                             </h3>
                             <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed line-clamp-3">
-                              {levelShortDesc}
+                              {level.shortDesc}
                             </p>
                           </div>
                         </div>
@@ -1079,7 +1696,7 @@
                     {t.codexSub}
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-wider uppercase text-white">
-                    {t.codexTitle} ({ENTITIES.length})
+                    {t.codexTitle} ({currentEntities.length})
                   </h2>
                 </div>
                 <p className="text-xs text-zinc-500">
@@ -1087,43 +1704,37 @@
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                {ENTITIES.map((ent) => {
-                  const entName = lang === "ru" ? ent.name_ru : ent.name;
-                  const entThreat = lang === "ru" ? ent.threat_ru : ent.threatLevel;
-                  const entHabitat = lang === "ru" ? ent.habitat_ru : ent.habitat;
-
-                  return (
-                    <button
-                      key={ent.id}
-                      onClick={() => setActiveEntity(ent)}
-                      className="text-left p-3 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-center gap-3.5"
-                    >
-                      <div className="w-14 h-14 shrink-0 bg-zinc-900 border border-zinc-800 overflow-hidden">
-                        <ArchiveImage
-                          src={ent.image}
-                          alt={entName}
-                          fallbackTitle={entName}
-                          fallbackSubtitle={entThreat}
-                          accentColor="#ef4444"
-                          style={{ objectPosition: ent.imagePosition || "center top" }}
-                          className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
-                        />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                {currentEntities.map((ent) => (
+                  <button
+                    key={ent.id}
+                    onClick={() => setActiveEntityId(ent.id)}
+                    className="text-left p-3 bg-zinc-950 border border-zinc-800 hover:border-red-500/70 transition-all group flex items-center gap-3.5"
+                  >
+                    <div className="w-14 h-14 shrink-0 bg-zinc-900 border border-zinc-800 overflow-hidden">
+                      <ArchiveImage
+                        src={ent.image}
+                        alt={ent.name}
+                        fallbackTitle={ent.name}
+                        fallbackSubtitle={ent.threatLevel}
+                        accentColor="#ef4444"
+                        style={{ objectPosition: ent.imagePosition || "center top" }}
+                        className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold truncate">
+                        {ent.threatLevel} {t.threatSuffix}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[10px] text-red-400/90 tracking-widest uppercase font-bold truncate">
-                          {entThreat} {t.threatSuffix}
-                        </div>
-                        <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5 truncate">
-                          {entName}
-                        </div>
-                        <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
-                          {entHabitat}
-                        </div>
+                      <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-400 transition-colors mt-0.5 truncate">
+                        {ent.name}
                       </div>
-                    </button>
-                  );
-                })}
+                      <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                        {ent.habitat}
+                      </div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </section>
           </main>
@@ -1145,7 +1756,7 @@
           {/* ================================================================= */}
           {activeLevel && (
             <div
-              onClick={() => setActiveLevel(null)}
+              onClick={() => setActiveLevelId(null)}
               className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
             >
               <div
@@ -1153,16 +1764,31 @@
                 className="relative w-full max-w-3xl bg-[#0b0c0f] border-2 border-amber-400/70 shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden my-auto max-h-[92vh] flex flex-col"
               >
                 {/* Modal Top Terminal Bar */}
-                <div className="flex items-center justify-between px-4 sm:px-6 py-3 bg-zinc-950 border-b border-zinc-800">
-                  <div className="flex items-center gap-2 text-xs text-amber-400 font-bold tracking-widest uppercase">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 bg-zinc-950 border-b border-zinc-800">
+                  <div className="flex items-center gap-3 text-xs text-amber-400 font-bold tracking-widest uppercase">
                     <span>{t.modalSectorDossier}: {activeLevel.code}</span>
+                    {audioEnabled && (
+                      <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-400/10 border border-amber-400/40 text-[10px] text-amber-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                        {t.modalAudioPlaying}
+                      </span>
+                    )}
                   </div>
-                  <button
-                    onClick={() => setActiveLevel(null)}
-                    className="px-2.5 py-1 bg-zinc-900 hover:bg-amber-400 hover:text-black text-zinc-300 border border-zinc-700 text-xs font-bold tracking-widest transition-colors"
-                  >
-                    {t.modalCloseEsc}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleOpenRandomLevel}
+                      className="px-2 py-1 bg-zinc-900 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-500/40 text-[11px] font-bold tracking-widest transition-colors"
+                    >
+                      🎲
+                    </button>
+                    <button
+                      onClick={() => setActiveLevelId(null)}
+                      className="px-2.5 py-1 bg-zinc-900 hover:bg-amber-400 hover:text-black text-zinc-300 border border-zinc-700 text-xs font-bold tracking-widest transition-colors"
+                    >
+                      {t.modalCloseEsc}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Modal Scrollable Body */}
@@ -1171,9 +1797,9 @@
                   <div className="relative h-56 sm:h-72 w-full bg-zinc-950 border border-zinc-800 overflow-hidden">
                     <ArchiveImage
                       src={activeLevel.image}
-                      alt={lang === "ru" ? activeLevel.name_ru : activeLevel.name}
+                      alt={activeLevel.name}
                       fallbackTitle={activeLevel.code}
-                      fallbackSubtitle={lang === "ru" ? activeLevel.name_ru : activeLevel.name}
+                      fallbackSubtitle={activeLevel.name}
                       accentColor="#f5be0b"
                       style={{ objectPosition: activeLevel.imagePosition || "center center" }}
                       className="w-full h-full object-cover"
@@ -1183,10 +1809,10 @@
                     <div className="absolute bottom-3 left-4 right-4 flex flex-wrap items-end justify-between gap-2">
                       <div>
                         <span className="text-xs text-amber-400 uppercase tracking-widest block">
-                          {lang === "ru" ? activeLevel.subtitle_ru : activeLevel.classInfo}
+                          {activeLevel.classInfo}
                         </span>
                         <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-wide">
-                          {lang === "ru" ? activeLevel.name_ru : activeLevel.name}
+                          {activeLevel.name}
                         </h2>
                       </div>
                       <span
@@ -1224,7 +1850,7 @@
                         {t.modalBiomeLabel}
                       </div>
                       <div className="text-xs text-zinc-300">
-                        {lang === "ru" ? activeLevel.biome_ru : activeLevel.biome}
+                        {activeLevel.biome}
                       </div>
                     </div>
                     <div className="bg-zinc-950/80 border border-zinc-800 p-3.5">
@@ -1232,7 +1858,7 @@
                         {t.modalExitsLabel}
                       </div>
                       <div className="text-xs text-zinc-300">
-                        {lang === "ru" ? activeLevel.exits_ru : activeLevel.exits}
+                        {activeLevel.exits}
                       </div>
                     </div>
                   </div>
@@ -1243,50 +1869,56 @@
                       {t.modalEnvDesc}
                     </div>
                     <p className="text-sm sm:text-base text-zinc-300 leading-relaxed bg-zinc-950/60 border border-zinc-800/80 p-4">
-                      {lang === "ru" ? activeLevel.description_ru : activeLevel.description}
+                      {activeLevel.description}
                     </p>
                   </div>
 
-                  {/* Confirmed Entities List (Clicking opens Monster Modal) */}
+                  {/* Confirmed Entities List (Clicking sets activeEntityId) */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-red-400 uppercase tracking-widest font-bold">
                         {t.modalConfirmedEntities} ({activeLevel.entities.length})
                       </span>
-                      <span className="text-[11px] text-zinc-500">
-                        {t.modalClickEntityHint}
-                      </span>
+                      {activeLevel.entities.length > 0 && (
+                        <span className="text-[11px] text-zinc-500">
+                          {t.modalClickEntityHint}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {activeLevel.entities.map((entityId) => {
-                        const entityObj = getEntityById(entityId);
-                        if (!entityObj) return null;
-                        const entName = lang === "ru" ? entityObj.name_ru : entityObj.name;
-                        const entClass = lang === "ru" ? entityObj.classification_ru : entityObj.classification;
+                    {activeLevel.entities.length === 0 ? (
+                      <div className="p-4 bg-rose-950/20 border border-rose-500/40 text-xs text-rose-300 tracking-wider uppercase font-bold">
+                        {t.modalNoEntities}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {activeLevel.entities.map((entityId) => {
+                          const entityObj = getEntityById(entityId);
+                          if (!entityObj) return null;
 
-                        return (
-                          <button
-                            key={entityObj.id}
-                            onClick={() => setActiveEntity(entityObj)}
-                            className="flex items-center justify-between p-3.5 bg-zinc-950 border border-zinc-800 hover:border-red-500 text-left group transition-all"
-                          >
-                            <div className="pr-2">
-                              <div className="text-xs font-bold text-red-400 group-hover:text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                                <span>{entName}</span>
+                          return (
+                            <button
+                              key={entityObj.id}
+                              onClick={() => setActiveEntityId(entityObj.id)}
+                              className="flex items-center justify-between p-3.5 bg-zinc-950 border border-zinc-800 hover:border-red-500 text-left group transition-all"
+                            >
+                              <div className="pr-2">
+                                <div className="text-xs font-bold text-red-400 group-hover:text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                                  <span>{entityObj.name}</span>
+                                </div>
+                                <div className="text-[11px] text-zinc-500 mt-0.5">
+                                  {entityObj.classification}
+                                </div>
                               </div>
-                              <div className="text-[11px] text-zinc-500 mt-0.5">
-                                {entClass}
-                              </div>
-                            </div>
-                            <span className="text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform shrink-0">
-                              {t.modalFileBtn}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                              <span className="text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform shrink-0">
+                                {t.modalFileBtn}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1294,7 +1926,7 @@
                 <div className="px-4 sm:px-6 py-3 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
                   <span>{t.modalFooterVerified}</span>
                   <button
-                    onClick={() => setActiveLevel(null)}
+                    onClick={() => setActiveLevelId(null)}
                     className="text-amber-400 hover:underline font-bold uppercase tracking-wider"
                   >
                     {t.modalCloseDossier}
@@ -1309,7 +1941,7 @@
           {/* ================================================================= */}
           {activeEntity && (
             <div
-              onClick={() => setActiveEntity(null)}
+              onClick={() => setActiveEntityId(null)}
               className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
             >
               <div
@@ -1323,7 +1955,7 @@
                     <span>{t.entityModalHeader}</span>
                   </div>
                   <button
-                    onClick={() => setActiveEntity(null)}
+                    onClick={() => setActiveEntityId(null)}
                     className="px-2.5 py-1 bg-zinc-900 hover:bg-red-500 hover:text-black text-zinc-200 border border-red-500/50 text-xs font-bold tracking-widest transition-colors"
                   >
                     {t.entityModalReturn}
@@ -1336,9 +1968,9 @@
                   <div className="relative h-64 sm:h-80 w-full bg-zinc-950 border border-red-900/50 overflow-hidden">
                     <ArchiveImage
                       src={activeEntity.image}
-                      alt={lang === "ru" ? activeEntity.name_ru : activeEntity.name}
-                      fallbackTitle={lang === "ru" ? activeEntity.name_ru : activeEntity.name}
-                      fallbackSubtitle={lang === "ru" ? activeEntity.classification_ru : activeEntity.classification}
+                      alt={activeEntity.name}
+                      fallbackTitle={activeEntity.name}
+                      fallbackSubtitle={activeEntity.classification}
                       accentColor="#ef4444"
                       style={{
                         objectPosition:
@@ -1359,20 +1991,20 @@
                       [{entityFitMode === "cover" ? t.entityFullFrame : t.entityCropView}]
                     </button>
                     <span className="absolute top-3 right-3 px-2.5 py-1 bg-red-950/90 border border-red-500 text-red-300 text-[11px] font-bold tracking-widest uppercase">
-                      {t.entityThreatPrefix}: {lang === "ru" ? activeEntity.threat_ru : activeEntity.threatLevel}
+                      {t.entityThreatPrefix}: {activeEntity.threatLevel}
                     </span>
                   </div>
 
                   {/* Entity Name & Metadata */}
                   <div>
                     <div className="text-xs text-red-400 uppercase tracking-widest font-bold">
-                      {lang === "ru" ? activeEntity.classification_ru : activeEntity.classification}
+                      {activeEntity.classification}
                     </div>
                     <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-wide mt-1">
-                      {lang === "ru" ? activeEntity.name_ru : activeEntity.name}
+                      {activeEntity.name}
                     </h3>
                     <div className="text-xs text-zinc-400 mt-1">
-                      {t.entityPrimaryHabitat}: <span className="text-amber-400">{lang === "ru" ? activeEntity.habitat_ru : activeEntity.habitat}</span>
+                      {t.entityPrimaryHabitat}: <span className="text-amber-400">{activeEntity.habitat}</span>
                     </div>
                   </div>
 
@@ -1382,25 +2014,25 @@
                       {t.entityFieldObs}
                     </div>
                     <p className="text-sm text-zinc-300 leading-relaxed">
-                      {lang === "ru" ? activeEntity.description_ru : activeEntity.description}
+                      {activeEntity.description}
                     </p>
                   </div>
 
                   {/* Entity Survival Protocol */}
-                  {(activeEntity.survivalTip || activeEntity.survivalTip_ru) && (
+                  {activeEntity.survivalTip && (
                     <div className="bg-amber-950/20 border border-amber-500/40 p-3.5">
                       <div className="text-[11px] text-amber-400 uppercase tracking-widest font-bold mb-1">
                         {t.entitySurvivalProtocol}
                       </div>
                       <p className="text-xs sm:text-sm text-amber-200/90 leading-relaxed">
-                        {lang === "ru" ? activeEntity.survivalTip_ru : activeEntity.survivalTip}
+                        {activeEntity.survivalTip}
                       </p>
                     </div>
                   )}
 
                   <div className="flex justify-end">
                     <button
-                      onClick={() => setActiveEntity(null)}
+                      onClick={() => setActiveEntityId(null)}
                       className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-widest transition-colors"
                     >
                       {t.entityAckClose}
