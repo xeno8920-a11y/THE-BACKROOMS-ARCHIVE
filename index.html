@@ -177,6 +177,52 @@
       white-space: nowrap;
       animation: party-ticker 12s linear infinite;
     }
+
+    /* Power Brownout / Fluorescent Flicker Effect */
+    @keyframes crt-brownout-anim {
+      0% { filter: brightness(1) contrast(1); }
+      10% { filter: brightness(0.15) contrast(1.4) sepia(0.3); }
+      22% { filter: brightness(0.85) contrast(1.05); }
+      35% { filter: brightness(0.08) contrast(1.6); }
+      55% { filter: brightness(0.45) contrast(1.25); }
+      72% { filter: brightness(0.18) contrast(1.4); }
+      88% { filter: brightness(1.12) contrast(1.1); }
+      100% { filter: brightness(1) contrast(1); }
+    }
+    .crt-brownout {
+      animation: crt-brownout-anim 1.2s ease-in-out forwards;
+    }
+
+    /* Redacted Censor Bar Styling */
+    .redacted-bar {
+      display: inline-block;
+      background-color: #18181b;
+      color: #f5be0b;
+      border: 1px solid rgba(245, 190, 11, 0.45);
+      padding: 0 6px;
+      margin: 0 2px;
+      font-weight: 700;
+      font-size: 0.78em;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .redacted-bar:hover {
+      background-color: #f5be0b;
+      color: #000000;
+      box-shadow: 0 0 12px rgba(245, 190, 11, 0.5);
+    }
+    .redacted-revealed {
+      display: inline;
+      background-color: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border-bottom: 1px dashed #ef4444;
+      padding: 0 4px;
+      margin: 0 1px;
+      font-weight: 600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body class="min-h-screen relative selection:bg-amber-400 selection:text-black">
@@ -255,6 +301,9 @@
         this.ctx = null;
         this.isGlobalRunning = false;
         this.baseNodes = [];
+        this.baseOsc1 = null;
+        this.baseOsc2 = null;
+        this.baseMasterGain = null;
         this.levelNodes = [];
         this.levelIntervals = [];
         this.noiseBuffer = null;
@@ -328,6 +377,9 @@
           osc2.start();
           noise.start();
 
+          this.baseOsc1 = osc;
+          this.baseOsc2 = osc2;
+          this.baseMasterGain = masterGain;
           this.baseNodes = [osc, osc2, noise, osc2Gain, filter, noiseGain, masterGain];
         } catch (err) {
           console.warn("AmbientEngine start blocked until user gesture:", err);
@@ -342,12 +394,93 @@
           } catch (e) {}
         });
         this.baseNodes = [];
+        this.baseOsc1 = null;
+        this.baseOsc2 = null;
+        this.baseMasterGain = null;
       }
 
       stop() {
         this.isGlobalRunning = false;
         this.stopBaseNodes();
         this.stopLevelAmbient();
+      }
+
+      // Power Brownout Relay Click & 60Hz Pitch Sag
+      triggerBrownout() {
+        if (!this.isGlobalRunning) return;
+        try {
+          this.initContext();
+          const now = this.ctx.currentTime;
+
+          // Relay mechanical click + electric zap
+          const clickOsc = this.ctx.createOscillator();
+          const clickGain = this.ctx.createGain();
+          clickOsc.type = "sawtooth";
+          clickOsc.frequency.setValueAtTime(190, now);
+          clickOsc.frequency.exponentialRampToValueAtTime(38, now + 0.09);
+          clickGain.gain.setValueAtTime(0.055, now);
+          clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+          clickOsc.connect(clickGain);
+          clickGain.connect(this.ctx.destination);
+          clickOsc.start(now);
+          clickOsc.stop(now + 0.12);
+
+          // Pitch drop in fluorescent hum if base oscillators are running
+          if (this.baseOsc1 && this.baseOsc2 && this.baseMasterGain) {
+            this.baseOsc1.frequency.setValueAtTime(60, now);
+            this.baseOsc1.frequency.linearRampToValueAtTime(36, now + 0.35);
+            this.baseOsc1.frequency.linearRampToValueAtTime(60, now + 1.15);
+
+            this.baseOsc2.frequency.setValueAtTime(120, now);
+            this.baseOsc2.frequency.linearRampToValueAtTime(72, now + 0.35);
+            this.baseOsc2.frequency.linearRampToValueAtTime(120, now + 1.15);
+
+            this.baseMasterGain.gain.setValueAtTime(0.03, now);
+            this.baseMasterGain.gain.linearRampToValueAtTime(0.006, now + 0.3);
+            this.baseMasterGain.gain.linearRampToValueAtTime(0.045, now + 0.85);
+            this.baseMasterGain.gain.linearRampToValueAtTime(0.03, now + 1.2);
+          }
+        } catch (e) {}
+      }
+
+      // Almond Water Sanity Restore Chime
+      playSanityRestore() {
+        try {
+          this.initContext();
+          const now = this.ctx.currentTime;
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, now + idx * 0.065);
+            g.gain.setValueAtTime(0.035, now + idx * 0.065);
+            g.gain.exponentialRampToValueAtTime(0.0008, now + idx * 0.065 + 0.45);
+            osc.connect(g);
+            g.connect(this.ctx.destination);
+            osc.start(now + idx * 0.065);
+            osc.stop(now + idx * 0.065 + 0.48);
+          });
+        } catch (e) {}
+      }
+
+      // Redacted Spoiler Decrypt Blip
+      playDecryptBlip() {
+        try {
+          this.initContext();
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.setValueAtTime(1320, now + 0.04);
+          g.gain.setValueAtTime(0.02, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc.connect(g);
+          g.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } catch (e) {}
       }
 
       // Stop only modal level-specific sound
@@ -429,6 +562,67 @@
             filter.connect(levelMaster);
             noise.start();
             this.levelNodes.push(noise, filter);
+
+          } else if (levelId === "level-10") {
+            // Level 10: Gentle sweeping prairie wind across wheat fields (bandpass noise + slow LFO)
+            const noise = this.createNoiseSource();
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = "bandpass";
+            filter.frequency.setValueAtTime(420, now);
+            filter.Q.setValueAtTime(2.5, now);
+
+            const lfo = this.ctx.createOscillator();
+            lfo.type = "sine";
+            lfo.frequency.setValueAtTime(0.18, now);
+            const lfoGain = this.ctx.createGain();
+            lfoGain.gain.setValueAtTime(240, now);
+
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+            noise.connect(filter);
+            filter.connect(levelMaster);
+
+            noise.start();
+            lfo.start();
+            this.levelNodes.push(noise, filter, lfo, lfoGain);
+
+          } else if (levelId === "level-3999") {
+            // Level 3999: Warm nostalgic synth pad / dreamy arcade sanctuary chord
+            const padFreqs = [261.63, 329.63, 392.0, 493.88, 587.33]; // Cmaj9 dreamy chord
+            padFreqs.forEach((f, idx) => {
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              osc.type = idx % 2 === 0 ? "sine" : "triangle";
+              osc.frequency.setValueAtTime(f, now);
+              g.gain.setValueAtTime(0.16, now);
+              osc.connect(g);
+              g.connect(levelMaster);
+              osc.start();
+              this.levelNodes.push(osc, g);
+            });
+
+            // Shimmering arcade arpeggio chime
+            const arpNotes = [523.25, 659.25, 783.99, 987.77, 1174.66];
+            let step = 0;
+            const playShimmer = () => {
+              if (!this.isGlobalRunning) return;
+              const t = this.ctx.currentTime;
+              const osc = this.ctx.createOscillator();
+              const g = this.ctx.createGain();
+              const freq = arpNotes[step % arpNotes.length];
+              step++;
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(freq, t);
+              g.gain.setValueAtTime(0.18, t);
+              g.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+              osc.connect(g);
+              g.connect(levelMaster);
+              osc.start(t);
+              osc.stop(t + 0.7);
+            };
+            playShimmer();
+            const id = setInterval(playShimmer, 650);
+            this.levelIntervals.push(id);
 
           } else if (levelId === "level-37") {
             // Плеск воды (короткие импульсы + реверберация/задержка)
@@ -618,186 +812,154 @@
     const soundEngine = new AmbientEngine();
 
     // ============================================================================
-    // HERO BACKGROUND IMAGE URL
+    // OBJECTS / ITEMS REGISTRY (WITH LOCAL OBJECT-*.JPG PATHS)
     // ============================================================================
-    const HERO_BG_URL = "images/hero-bg.jpg";
+    const RAW_OBJECTS = [
+      {
+        id: "obj-almond-water",
+        name: "Almond Water",
+        name_ru: "Миндальная вода (Almond Water)",
+        classification: "Object 001 // Vital Sustenance & Panacea",
+        classification_ru: "Объект 001 // Жизненно важный стабилизатор",
+        dangerRating: "SAFE / BENEFICIAL",
+        danger_ru: "БЕЗОПАСНО / ПОЛЕЗНО",
+        origin: "Level 1, Level 4, Level 10, Vending Machines",
+        origin_ru: "Уровень 1, Уровень 4, Уровень 10, Автоматы",
+        image: "images/object-almond-water.jpg",
+        shortDesc: "A sweet, almond-and-vanilla scented liquid essential for surviving and restoring Sanity in the Backrooms.",
+        shortDesc_ru: "Сладковатая жидкость с ароматом миндаля и ванили — главный ключ к выживанию и восстановлению рассудка.",
+        description: "Almond Water is the single most valuable resource in the Backrooms. It possesses slight healing properties, reverses early stages of entity infections, and actively restores a wanderer's mental stability (+35% Sanity) when exposed to psychological hazards. It can be found in plastic bottles, glass flasks, and vintage vending machines.",
+        description_ru: "Миндальная вода — самый ценный ресурс в Закулисье. Обладает целебными свойствами, обращает вспять ранние стадии заражений сущностями и восстанавливает рассудок странников (+35% рассудка), подвергшихся психо-аномалиям. Встречается в пластиковых бутылках, стеклянных колбах и рабочих торговых автоматах.",
+        usage: "Drink 250ml whenever hearing phantom voices or experiencing cognitive distress. Also usable to clean open wounds and soothe hostile entities.",
+        usage_ru: "Пейте по 250 мл при слуховых галлюцинациях или потере рассудка. Также подходит для обработки ран и усмирения некоторых сущностей."
+      },
+      {
+        id: "obj-liquid-pain",
+        name: "Liquid Pain",
+        name_ru: "Жидкая боль (Liquid Pain)",
+        classification: "Object 002 // Lethal Anomalous Toxin",
+        classification_ru: "Объект 002 // Смертоносный аномальный токсин",
+        dangerRating: "LETHAL HAZARD",
+        danger_ru: "СМЕРТЕЛЬНАЯ ОПАСНОСТЬ",
+        origin: "Level 2, Level 3, Unmarked Vials",
+        origin_ru: "Уровень 2, Уровень 3, Маркированные колбы",
+        image: "images/object-liquid-pain.jpg",
+        shortDesc: "A deceptively red fluid resembling Almond Water that causes immediate organ rupture.",
+        shortDesc_ru: "Обманчивая красная жидкость, похожая на вишнёвую воду, вызывающая мучительный разрыв органов.",
+        description: "A hazardous liquid that visually mimics fruit syrup or red Almond Water. Consuming even a few milliliters leads to intense burning, severe convulsions, internal hemorrhaging, and death within seconds. It occasionally drips from rusted ceiling pipes on industrial levels.",
+        description_ru: "Крайне опасная субстанция, визуально напоминающая сироп или красную миндальную воду. Приём внутрь даже нескольких капель вызывает невыносимое жжение, судороги, множественные внутренние кровотечения и мучительную смерть за несколько секунд.",
+        usage: "STRICTLY FORBIDDEN FOR CONSUMPTION. Can be collected in glass vials and used as an offensive projectile against hostile entities.",
+        usage_ru: "КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО К УПОТРЕБЛЕНИЮ. Можно аккуратно собирать в ампулы и использовать как метательное оружие против сущностей."
+      },
+      {
+        id: "obj-firesalt",
+        name: "Firesalt",
+        name_ru: "Огненная соль / Огонь памяти (Firesalt)",
+        classification: "Object 012 // High-Energy Explosive Crystal",
+        classification_ru: "Объект 012 // Энергетический взрывной кристалл",
+        dangerRating: "VOLATILE",
+        danger_ru: "НЕСТАБИЛЬНО / ВЗРЫВООПАСНО",
+        origin: "Level 5 (Boiler Room), Level 8",
+        origin_ru: "Уровень 5 (Бойлерная), Уровень 8",
+        image: "images/object-firesalt.jpg",
+        shortDesc: "Glowing amber crystals that combust violently upon physical impact or sudden pressure.",
+        shortDesc_ru: "Светящиеся янтарные кристаллы, детонирующие мощным тепловым взрывом при ударе.",
+        description: "Firesalt is a translucent crystalline mineral that emits a warm orange luminescence. When struck against a hard surface or crushed, it triggers an instantaneous thermal explosion accompanied by blinding white-hot light and searing heat capable of destroying entities.",
+        description_ru: "Прозрачный кристаллический минерал, излучающий тёплое оранжевое свечение. При сильном ударе о твёрдую поверхность или дроблении мгновенно детонирует, создавая яркую вспышку и высокотемпературную волну, способную испепелить приближающихся тварей.",
+        usage: "Handle with padded gloves. Throw crystals at hostile pursuers as makeshift flashbangs or emergency perimeter mines.",
+        usage_ru: "Переносите только в мягких контейнерах. Бросайте под ноги преследующим сущностям в качестве светошумовых и зажигательных гранат."
+      },
+      {
+        id: "obj-meg-radio",
+        name: "M.E.G. Field Radio",
+        name_ru: "Полевая рация Б.И.Г. (M.E.G. Radio)",
+        classification: "Object 044 // Telemetry Transceiver",
+        classification_ru: "Объект 044 // Полевой трансивер связи",
+        dangerRating: "TACTICAL ESSENTIAL",
+        danger_ru: "ТАКТИЧЕСКИ ВАЖНО",
+        origin: "M.E.G. Supply Outposts (Level 1, 4, 3999)",
+        origin_ru: "Аванпосты Б.И.Г. (Уровень 1, 4, 3999)",
+        image: "images/object-meg-radio.jpg",
+        shortDesc: "Reinforced military transceivers capable of cutting through non-Euclidean static.",
+        shortDesc_ru: "Усиленные полевые рации, способные пробивать неевклидовые помехи между уровнями.",
+        description: "Standard-issue communications hardware distributed to certified M.E.G. exploration teams. Utilizing quantum-entangled crystal tuners, these radios maintain intermittent voice contact across adjacent levels where conventional mobile signals instantly fail.",
+        description_ru: "Стандартное коммуникационное оборудование оперативных групп Б.И.Г. Благодаря кварцевым квантовым фильтрам способно удерживать голосовой контакт между смежными уровнями, где сотовая и стандартная радиосвязь моментально затухают.",
+        usage: "Keep tuned to emergency channel 142.85 MHz. Broadcast coordinates when pinned down by hostile entities.",
+        usage_ru: "Держите включённым на аварийной частоте 142.85 МГц. Передавайте координаты при угрозе окружения сущностями."
+      }
+    ];
 
     // ============================================================================
-    // RAW DATABASE (LEVELS & ENTITIES) + UNIFIED SITE_DATA STRUCTURE (EN / RU)
+    // CLASSIFIED M.E.G. INCIDENT LOGS (WITH INTERACTIVE [REDACTED] SEGMENTS)
     // ============================================================================
-    const RAW_ENTITIES = [
+    const RAW_LOGS = [
       {
-        id: "bacteria",
-        name: "Bacteria (Lifeform)",
-        name_ru: "Бактерия (Форма жизни)",
-        classification: "Entity 001 // Hostile Pathogen-Construct",
-        classification_ru: "Сущность 001 // Враждебный патоген-конструкт",
-        threatLevel: "EXTREME",
-        threat_ru: "ЭКСТРЕМАЛЬНАЯ",
-        habitat: "Level 0",
-        habitat_ru: "Уровень 0",
-        image: "images/entity-bacteria.jpg",
-        imagePosition: "center 18%",
-        description: "A towering, spindly humanoid organism composed of tangled, tar-black tendon-like filaments. It emits a distorted, metallic howling sound resembling mangled radio transmissions and rapidly stalks wanderers who remain stationary in Level 0 for too long. Direct physical contact results in immediate assimilation or fatal cellular breakdown.",
-        description_ru: "Высокий, долговязый гуманоидный организм, состоящий из спутанных чёрно-смоляных нитей, напоминающих сухожилия и проволоку. Издаёт искажённый металлический вой, похожий на обрывки радиопередач, и стремительно преследует странников, которые слишком долго остаются на одном месте на Уровне 0. Прямой физический контакт приводит к мгновенной гибели или клеточному распаду.",
-        survivalTip: "Never stay stationary when you hear distorted metallic screeching. Break line-of-sight immediately by turning sharp corners across non-linear rooms.",
-        survivalTip_ru: "Никогда не стойте на месте, если слышите искажённый металлический рёв. Немедленно разрывайте линию видимости, резко сворачивая за углы комнат."
+        id: "log-0419",
+        code: "INCIDENT LOG #0419-A",
+        title: "First Contact Telemetry — Sector Level 0",
+        title_ru: "Первичный контакт — Сектор Уровень 0",
+        author: "Operative K. Vance // Recon Squad Alpha",
+        author_ru: "Оперативник К. Вэнс // Разведотряд «Альфа»",
+        date: "1994-11-03 // RECOVERED TAPE",
+        clearance: "LEVEL-4 CLASSIFIED",
+        segments: [
+          { text: "The 60Hz fluorescent buzz stopped abruptly at 03:14. My compass spun counter-clockwise before the glass cracked. Behind the damp yellow partition wall, I heard ", text_ru: "Гул ламп на частоте 60 Гц внезапно оборвался в 03:14. Стрелка компаса бешено закрутилась против часовой стрелки, после чего треснуло стекло. За влажной жёлтой перегородкой я услышал " },
+          { redacted: "my own voice screaming for help from three days in the future", redacted_ru: "свой собственный голос, молящий о помощи из будущего через три дня" },
+          { text: ". When the Bacteria lifeform rounded the corner, its tendrils did not attack immediately—instead, it ", text_ru: ". Когда фигура Бактерии вывернула из-за угла, её отростки не атаковали сразу — вместо этого она " },
+          { redacted: "mimicked the exact posture of our missing squad leader and pointed at the floor", redacted_ru: "в точности повторила позу нашего пропавшего командира и указала в пол" },
+          { text: " before the camera feed dissolved into static.", text_ru: ", после чего видеосигнал камеры растворился в помехах." }
+        ]
       },
       {
-        id: "smiler",
-        name: "Smilers",
-        name_ru: "Улыбающиеся (Smilers)",
-        classification: "Entity 003 // Photophobic Predator",
-        classification_ru: "Сущность 003 // Светобоязненный хищник",
-        threatLevel: "HIGH",
-        threat_ru: "ВЫСОКАЯ",
-        habitat: "Level 1, Level 2, Level !, Dark Zones",
-        habitat_ru: "Уровень 1, Уровень 2, Уровень !, Тёмные зоны",
-        image: "images/entity-smiler.jpg",
-        imagePosition: "center center",
-        description: "Smilers are recognizable almost exclusively by their reflective, glowing eyes and unnaturally wide, gleaming teeth suspended in pitch-black darkness. It is unknown whether they possess a physical body beyond the darkness that shrouds them. They are attracted to light sources—if spotted, turn off flashlights immediately and back away slowly while maintaining eye contact.",
-        description_ru: "Улыбающихся можно узнать почти исключительно по их светящимся глазам и неестественно широкой, сверкающей зубастой улыбке, парящей в кромешной тьме. До сих пор неизвестно, есть ли у них физическое тело за пределами окутывающего их мрака. Их привлекает свет фонариков — при обнаружении немедленно выключите источник света и медленно отступайте спиной вперёд, не разрывая зрительного контакта.",
-        survivalTip: "Extinguish all flashlights immediately. Maintain steady eye contact and walk backward slowly; running or turning your back triggers an instant lunge.",
-        survivalTip_ru: "Немедленно погасите все фонари. Поддерживайте прямой зрительный контакт и медленно пятиться назад; бегство или поворот спиной спровоцируют мгновенный бросок."
+        id: "log-1108",
+        code: "INCIDENT LOG #1108-HYDRO",
+        title: "Subterranean Drain Expedition — Level 37",
+        title_ru: "Экспедиция к донным сливам — Уровень 37",
+        author: "Dr. E. Morozova // M.E.G. Bio-Research",
+        author_ru: "Д-р Е. Морозова // Био-отдел Б.И.Г.",
+        date: "2018-07-19 // HYDRO-SONAR LOG",
+        clearance: "BIOHAZARD EYES ONLY",
+        segments: [
+          { text: "Water samples taken from the unlit lower basins of Level 37 tested negative for chlorine. Sonar pulses sent down the central octagonal drain failed to return an echo for 44 seconds, indicating a depth exceeding ", text_ru: "Пробы воды из неосвещённых нижних резервуаров Уровня 37 показали полное отсутствие хлора. Импульсы сонара, направленные в центральный восьмиугольный слив, не возвращали эхо 44 секунды, что указывает на глубину свыше " },
+          { redacted: "33,000 meters—deeper than any ocean on Earth", redacted_ru: "33 000 метров — втрое глубже Марианской впадины" },
+          { text: ". Microbiological analysis of the Hydrolitis strain revealed that the bacteria ", text_ru: ". Микробиологический анализ штамма Гидролитовой чумы показал, что бактерии " },
+          { redacted: "communicate via synchronized bioluminescent pulses forming human facial patterns", redacted_ru: "обмениваются синхронными биолюминесцентными импульсами, складывающимися в человеческие лица" },
+          { text: " in the dark water.", text_ru: " в тёмной воде." }
+        ]
       },
       {
-        id: "hound",
-        name: "Hounds",
-        name_ru: "Гончие (Hounds)",
-        classification: "Entity 008 // Quadrupedal Scavenger",
-        classification_ru: "Сущность 008 // Четвероногий падальщик",
-        threatLevel: "MODERATE-HIGH",
-        threat_ru: "СРЕДНЕ-ВЫСОКАЯ",
-        habitat: "Level 1, Level 2, Level 4, Level 5, Level 8, Level 9",
-        habitat_ru: "Уровень 1, Уровень 2, Уровень 4, Уровень 5, Уровень 8, Уровень 9",
-        image: "images/entity-hound.jpg",
-        imagePosition: "center 20%",
-        description: "Grotesque, emaciated humanoid beings that move on all fours with inverted joints and overgrown claws. Thick, matted hair covers their heads, obscuring bloodshot eyes and a jaw capable of unhinging. While aggressive when starving, Hounds can be momentarily intimidated by direct, unwavering eye contact before retreating into ventilation shafts.",
-        description_ru: "Гротескные, истощённые гуманоидные существа, передвигающиеся на четвереньках с вывернутыми суставами и длинными когтями. Густые спутанные волосы закрывают их головы, скрывая налитые кровью глаза и челюсть, способную неестественно широко раскрываться. Хотя голодные Гончие крайне агрессивны, их можно временно запугать прямым, непоколебимым взглядом глаза в глаза.",
-        survivalTip: "Stand your ground and stare directly into the Hound's eyes without blinking when it growls. Once it hesitates, back away out of its territory.",
-        survivalTip_ru: "Не убегайте: замрите и смотрите прямо в глаза Гончей, не моргая, когда она рычит. Когда сущность заколеблется, медленно покиньте её территорию."
+        id: "log-2094",
+        code: "INCIDENT LOG #2094-VOID",
+        title: "Blackbox Audio Transcript — Level 6",
+        title_ru: "Расшифровка чёрного ящика — Уровень 6",
+        author: "Field Agent M. Hale (MIA)",
+        author_ru: "Полевой агент М. Хейл (пропал без вести)",
+        date: "2022-02-14 // AUDIO TRANSCRIPT",
+        clearance: "COGNITOHAZARD WARNING",
+        segments: [
+          { text: "I taped my mouth shut four hours ago as instructed by M.E.G. protocol. My tactical flashlight beam stops dead at 1.8 meters, as if hitting a solid wall of ink. Something is walking parallel to me. It just whispered ", text_ru: "Я заклеил рот армированным скотчем четыре часа назад строго по протоколу Б.И.Г. Луч тактического фонаря обрывается ровно в 1.8 метра, будто упираясь в стену чернил. Что-то идёт параллельно со мной. Оно только что прошептало " },
+          { redacted: "the exact serial number of my M.E.G. dog-tag and my mother's maiden name", redacted_ru: "точный серийный номер моего жетона Б.И.Г. и девичью фамилию моей матери" },
+          { text: ". Wait... I can feel cold fingers peeling the tape off my lips, even though ", text_ru: ". Подождите... я чувствую, как ледяные пальцы отклеивают скотч с моих губ, хотя " },
+          { redacted: "both of my own hands are still clutching the radio transceiver", redacted_ru: "обе мои собственные руки всё ещё сжимают корпус рации" },
+          { text: ". [END OF RECORDING]", text_ru: ". [КОНЕЦ ЗАПИСИ]" }
+        ]
       },
       {
-        id: "skin-stealer",
-        name: "Skin-Stealers",
-        name_ru: "Кожекрады (Skin-Stealers)",
-        classification: "Entity 010 // Mimetic Carnivore",
-        classification_ru: "Сущность 010 // Мимикрирующий хищник",
-        threatLevel: "SEVERE",
-        threat_ru: "СЕРЬЁЗНАЯ",
-        habitat: "Level 1, Level 2, Level 9",
-        habitat_ru: "Уровень 1, Уровень 2, Уровень 9",
-        image: "images/entity-skin-stealer.jpg",
-        imagePosition: "center 15%",
-        description: "Large, pale, humanoid creatures with sunken eyes and microscopic suction bumps covering their flesh. When hunting, they flay deceased or captured wanderers and wear their skin like a decaying suit to lure other humans. You can identify a disguised Skin-Stealer by its translucent, yellowish blood and inability to speak coherent sentences.",
-        description_ru: "Крупные бледные гуманоидные существа с запавшими глазами и микроскопическими присосками по всему телу. На охоте они сдирают кожу с погибших или пойманных странников и носят её как разлагающийся костюм, чтобы приманивать других людей. Замаскированного Кожекрада можно вычислить по мутной желтоватой крови, запаху гнили и неспособности произносить связные предложения.",
-        survivalTip: "Never approach wanderers who repeat fragmented phrases in a hollow voice or have loose, ill-fitting skin. Verify identity from a safe distance.",
-        survivalTip_ru: "Никогда не приближайтесь к «людям», которые повторяют обрывочные фразы глухим голосом или чья кожа выглядит обвисшей. Проверяйте личность с безопасной дистанции."
-      },
-      {
-        id: "clump",
-        name: "Clumps",
-        name_ru: "Клубки (Clumps)",
-        classification: "Entity 015 // Amalgamated Appendages",
-        classification_ru: "Сущность 015 // Сросшийся конгломерат конечностей",
-        threatLevel: "HIGH",
-        threat_ru: "ВЫСОКАЯ",
-        habitat: "Level 2, Tight Maintenance Tunnels",
-        habitat_ru: "Уровень 2, Узкие технические туннели",
-        image: "images/entity-clump.jpg",
-        imagePosition: "center 25%",
-        description: "A writhing spherical mass of human limbs—arms, legs, and hands of varying sizes—fused together around a central jaw. Clumps compress themselves into ceiling vents or narrow pipe junctions. When prey passes within a three-meter radius, a long muscular central arm shoots out at blinding speed to drag the victim into the mass.",
-        description_ru: "Извивающаяся сферическая масса человеческих конечностей — рук, ног и кистей разных размеров, — сросшихся вокруг центральной зубастой пасти. Клубки протискиваются в потолочные вентиляционные шахты или узкие развилки труб. Когда жертва проходит в радиусе трёх метров, длинная мускулистая центральная рука молниеносно выбрасывается вперёд и затягивает добычу внутрь.",
-        survivalTip: "Inspect ceiling vents and pipe junctions before passing underneath. Stay outside a 3-meter radius of any organic movement behind grates.",
-        survivalTip_ru: "Внимательно осматривайте потолочные решётки и узлы труб перед тем, как пройти под ними. Держитесь дальше 3 метров от любого движения за вентиляцией."
-      },
-      {
-        id: "partygoer",
-        name: "Partygoers",
-        name_ru: "Тусовщики (Partygoers)",
-        classification: "Entity 067 // High-Intelligence Apex Threat",
-        classification_ru: "Сущность 067 // Высокоинтеллектуальная высшая угроза",
-        threatLevel: "LETHAL",
-        threat_ru: "СМЕРТЕЛЬНАЯ",
-        habitat: "Level Fun, Level !, Corrupted Sub-Layers",
-        habitat_ru: "Уровень Веселья (Level Fun), Уровень !, Заражённые подуровни",
-        image: "images/entity-partygoer.jpg",
-        imagePosition: "center 8%",
-        description: "Tall, bipedal entities with leathery ochre skin, no visible facial features except a crudely carved, bleeding smile, and latch-hook appendices instead of hands. Exceptionally intelligent, they are capable of hacking M.E.G. terminal entries, appending '=)' to documentation to lure unsuspecting explorers into traps.",
-        description_ru: "Высокие двуногие сущности с кожистой охряно-жёлтой плотью, без видимых черт лица, кроме грубо вырезанной кровоточащей улыбки, и с крючковатыми отростками вместо кистей рук. Обладают высоким интеллектом: способны взламывать терминалы Б.И.Г., добавляя смайлик «=)» в архивные статьи, чтобы заманивать доверчивых исследователей в смертельные ловушки.",
-        survivalTip: "DISTRUST ANY ARCHIVE FILE ENDING WITH '=)'! If you hear distant calliope music or see floating red balloons, retreat in the opposite direction immediately.",
-        survivalTip_ru: "НЕ ДОВЕРЯЙТЕ ФАЙЛАМ С СИМВОЛОМ «=)»! Если вы слышите далёкую цирковую музыку или видите красные воздушные шарики — немедленно бегите в обратную сторону."
-      },
-      {
-        id: "hydrolitis",
-        name: "Hydrolitis Plague",
-        name_ru: "Гидролитовая чума (Hydrolitis Plague)",
-        classification: "Entity 037 // Waterborne Microbial Pathogen",
-        classification_ru: "Сущность 037 // Водный микробиологический патоген",
-        threatLevel: "BIOHAZARD",
-        threat_ru: "БИОУГРОЗА",
-        habitat: "Level 37 (Stagnant Dark Pools)",
-        habitat_ru: "Уровень 37 (Тёмные застойные бассейны)",
-        image: "images/entity-hydrolitis.jpg",
-        imagePosition: "center center",
-        description: "An invisible bacterium thriving in the unchlorinated, shadowed depths of Level 37's lower subterranean pools. Upon inhalation of warm mist or contact with open wounds, it induces severe delirium, hypothermia, and pulmonary edema within hours.",
-        description_ru: "Невидимая глазу бактерия, процветающая в нехлорированных, погружённых во мрак глубинах нижних подземных резервуаров Уровня 37. При вдыхании тёплого тумана или попадании воды в открытые царапины вызывает тяжёлый бред, лихорадку, переохлаждение и отёк лёгких в течение нескольких часов.",
-        survivalTip: "Only wade through brightly lit, chlorinated turquoise pools in Level 37. Boil all collected water and ration Almond Water to purge early infection.",
-        survivalTip_ru: "Передвигайтесь только по ярко освещённым бирюзовым бассейнам с запахом хлора. Кипятите любую воду и пейте Миндальную воду при первых симптомах."
-      },
-      // 6.1. Deathmoths
-      {
-        id: "deathmoths",
-        name: "Deathmoths",
-        name_ru: "Смертельные мотыльки (Deathmoths)",
-        classification: "Entity 004 // Photosensitive Aerial Predator",
-        classification_ru: "Сущность 004 // Светочувствительный хищник",
-        threatLevel: "HIGH",
-        threat_ru: "ВЫСОКАЯ",
-        habitat: "Level 5, Level 1",
-        habitat_ru: "Уровень 5, Уровень 1",
-        image: "images/entity-deathmoths.jpg",
-        imagePosition: "center center",
-        description: "Giant nocturnal insects with a wingspan reaching 1.5 meters. While male Deathmoths are relatively docile, the massive females residing in Level 5 are fiercely aggressive, flying directly toward any artificial light source. Their wings shed a dense cloud of neurotoxic pollen and they are capable of spitting corrosive acid.",
-        description_ru: "Огромные насекомые с размахом крыльев до 1.5 метров. Летят прямо на любой источник света. Их крылья покрыты высокотоксичной пыльцой, вызывающей паралич дыхания, а взрослые особи способны плеваться едкой кислотой.",
-        survivalTip: "Switch off all flashlights and phone screens immediately when you hear heavy wingbeats. Duck behind solid furniture until the swarm passes.",
-        survivalTip_ru: "Чтобы спастись — немедленно выключите свет (фонарики, экраны) при звуке тяжёлых взмахов крыльев и замрите в укрытии."
-      },
-      // 6.2. Whisperers
-      {
-        id: "whisperers",
-        name: "Whisperers",
-        name_ru: "Шептуны (Whisperers)",
-        classification: "Entity 066 // Blind Acoustic Hunter",
-        classification_ru: "Сущность 066 // Слепые охотники",
-        threatLevel: "HIGH",
-        threat_ru: "ВЫСОКАЯ",
-        habitat: "Level 6",
-        habitat_ru: "Уровень 6",
-        image: "images/entity-whisperers.jpg",
-        imagePosition: "center center",
-        description: "Unseen entities dwelling within the absolute pitch-black darkness of Level 6. Completely blind, they navigate via hyper-sensitive echolocation and auditory mimicry—whispering your name, childhood memories, and familiar voices right beside your ear to trick you into speaking. If you answer a whisper, they pinpoint and attack instantly.",
-        description_ru: "Сущности, обитающие в абсолютной тьме Уровня 6. Полностью слепые охотники, ориентирующиеся исключительно на слух. Они шепчут прямо над ухом имена близких и фразы из твоей жизни, чтобы спровоцировать тебя на ответ. Если ответишь — мгновенно атакуют.",
-        survivalTip: "Maintain absolute silence in Level 6. Tape your mouth if experiencing auditory hallucinations, and never reply to voices calling your name in the dark.",
-        survivalTip_ru: "Храните гробовое молчание на Уровне 6. Ни при каких обстоятельствах не отвечайте на голоса, зовущие вас по имени из темноты."
-      },
-      // 6.3. Cave Spiders
-      {
-        id: "cave-spiders",
-        name: "Cave Spiders",
-        name_ru: "Пещерные пауки (Cave Spiders)",
-        classification: "Entity 082 // Blind Vibration Arachnid",
-        classification_ru: "Сущность 082 // Слепой охотник",
-        threatLevel: "LETHAL",
-        threat_ru: "СМЕРТЕЛЬНАЯ",
-        habitat: "Level 8",
-        habitat_ru: "Уровень 8",
-        image: "images/entity-cave-spiders.jpg",
-        imagePosition: "center center",
-        description: "Massive, eyeless arachnids with pitch-black chitinous carapaces that blend seamlessly into the stalactites of Level 8. They crawl silently across cavern ceilings and detect prey exclusively through seismic vibrations in the rock and webbing. Their venom liquefies internal organs within minutes.",
-        description_ru: "Гигантские слепые пауки, чувствующие малейшие вибрации камня и паутины. Бесшумно передвигаются по сводам и потолку пещер Уровня 8 и атакуют сверху.",
-        survivalTip: "If you hear rapid mandibles clicking above you — freeze completely and hold your breath. Do not take a single step until the clicking fades away.",
-        survivalTip_ru: "Если услышишь характерное щёлканье жвал над головой — замри и вообще не двигайся, пока звук полностью не стихнет."
+        id: "log-3999",
+        code: "INCIDENT LOG #3999-OMEGA",
+        title: "Exit Protocol Verification — Level 3999",
+        title_ru: "Верификация протокола выхода — Уровень 3999",
+        author: "Overseer Council // Bastion Command",
+        author_ru: "Совет Смотрителей // Командование Бастиона",
+        date: "REDACTED // ARCHIVE SEAL",
+        clearance: "OMEGA CLEARANCE",
+        segments: [
+          { text: "Wanderer #8841 completed the final task on his personalized Level 3999 checklist at 18:00 hours. As the glass doors of the neon arcade parted, our external telemetry sensors recorded ", text_ru: "Странник #8841 выполнил последний пункт своего персонального списка заданий на Уровне 3999 в 18:00. Когда стеклянные двери неоновой аркады разъехались, наши внешние датчики зафиксировали " },
+          { redacted: "unmistakable GPS coordinates corresponding to downtown Seattle, Frontrooms (Baseline Reality)", redacted_ru: "подлинные GPS-координаты центра Сиэтла в Базовой Реальности (Сцене / Frontrooms)" },
+          { text: ". However, High Command has ordered this frequency restricted because ", text_ru: ". Тем не менее Верховное Командование засекретило эту частоту, поскольку " },
+          { redacted: "only wanderers who have never consumed Liquid Pain or harmed another human can see the doors", redacted_ru: "стеклянные двери видят только те странники, которые ни разу не причинили вреда другому человеку в Закулисье" },
+          { text: ".", text_ru: "." }
+        ]
       }
     ];
 
@@ -1083,10 +1245,11 @@
         subtitle_ru: "Класс 4 // Вечная полночь и туман",
         biome: "Infinite Foggy Midnight Suburban Streets",
         biome_ru: "Бесконечные ночные улицы пригорода в тумане",
-        exits: "Entering illuminated power-grid substations or no-clipping through asphalt leads to safer sectors.",
-        exits_ru: "Переход через трансформаторные подстанции или провал сквозь мокрый асфальт выводит в другие секторы.",
+        exits: "Entering illuminated power-grid substations leads to Level 1; following wooden fences past the fog leads to Level 10.",
+        exits_ru: "Переход через трансформаторные подстанции ведёт на Уровень 1; движение вдоль деревянных изгородей сквозь туман выводит на Уровень 10.",
         exitsList: [
-          { id: "level-1", label: "LEVEL 1" }
+          { id: "level-1", label: "LEVEL 1" },
+          { id: "level-10", label: "LEVEL 10" }
         ],
         image: "images/level-9.jpg",
         shortDesc: "An infinite suburban neighborhood trapped in perpetual midnight fog and patrolled by anomalies.",
@@ -1094,6 +1257,32 @@
         description: "Level 9 is an infinite suburban neighborhood trapped in perpetual midnight, blanketed in wet asphalt and unnatural fog. The houses are furnished as if evacuated seconds prior, often featuring working power grids that flicker erratically. Staying on the open street under working streetlights is fatal; wanderers must move stealthily through backyards and abandoned garages to evade the dense concentration of entities prowling the sidewalks.",
         description_ru: "Уровень 9 — это бесконечный пригородный район, погружённый в вечную полночь, мокрый асфальт и густой неестественный туман. Дома обставлены мебелью так, словно жильцы исчезли секунду назад, а электросеть хаотично мигает. Оставаться на открытой дороге под светом уличных фонарей смертельно опасно: странникам приходится красться через задние дворы и гаражи, чтобы избежать стай монстров на тротуарах.",
         entities: ["smiler", "skin-stealer", "hound"]
+      },
+      // NEW: Level 10 — The Bumper Crop
+      {
+        id: "level-10",
+        code: "LEVEL 10",
+        name: "Level 10 — \"The Bumper Crop\"",
+        name_ru: "Уровень 10 — «Изобилие (Пшеничные поля)»",
+        danger: "SAFE",
+        survivalRate: "86%",
+        classInfo: "Class 1 // Agricultural Sustenance Sector",
+        subtitle_ru: "Класс 1 // Аграрный сектор снабжения",
+        biome: "Infinite Golden Wheat Fields & Overcast Sky",
+        biome_ru: "Бесконечные золотые пшеничные поля под пасмурным небом",
+        exits: "Following dirt farm roads leads to Level 1; walking through misty wooden fences returns to Level 9; grain silos can lead to Level 4.",
+        exits_ru: "Грунтовые дороги ведут на Уровень 1; проход через туманные изгороди возвращает на Уровень 9; элеваторы ведут на Уровень 4.",
+        exitsList: [
+          { id: "level-1", label: "LEVEL 1" },
+          { id: "level-9", label: "LEVEL 9" },
+          { id: "level-4", label: "LEVEL 4" }
+        ],
+        image: "images/level-10.jpg",
+        shortDesc: "An endless expanse of golden wheat fields under a calm overcast twilight sky, dotted with supply-filled wooden barns.",
+        shortDesc_ru: "Бескрайние золотые поля пшеницы под спокойным сумеречным небом, усеянные деревянными амбарами с припасами и Миндальной водой.",
+        description: "Level 10 is a boundless agricultural expanse of swaying golden wheat fields divided by dirt paths and weathered wooden fences under a static, overcast twilight sky. The climate is cool and breezy, offering immense psychological relief after claustrophobic industrial sectors. Weathered red barns and silos appear every few miles, generously stocked with Almond Water, grain rations, and M.E.G. farming outposts. Occasionally, vintage tractors and harvesters can be seen operating on the horizon with no driver inside.",
+        description_ru: "Уровень 10 представляет собой бескрайние просторы колышущейся золотой пшеницы, разделённые грунтовыми дорогами и старыми деревянными изгородями под неподвижным пасмурным небом. Прохладный свежий ветер приносит колоссальное психологическое облегчение после душных коридоров. Каждые несколько миль встречаются деревянные амбары и силосные башни, полные Миндальной воды и провизии. Изредка на горизонте видны работающие комбайны и тракторы, движущиеся сами по себе без водителя.",
+        entities: ["hound"]
       },
       {
         id: "level-!",
@@ -1162,6 +1351,32 @@
         description: "Level 666 appears as an endless stone pathway framed by thousands of vermilion Japanese Torii gates under a blood-red sky. There are no biological entities native to this sector—the environment itself is the executioner. With every step forward, the level probes the wanderer's subconscious, manifesting hyper-realistic auditory and visual hallucinations of their worst traumas, phobias, and guilt. Even hostile Backrooms entities accidentally no-clipping here lose their minds and perish within minutes.",
         description_ru: "Бесконечный коридор из тысяч багровых японских ворот Тории, уходящий в кровавый туман. Здесь нет обычных монстров — сам уровень убивает каждого вошедшего. Пространство считывает подсознание человека, и каждый видит свой личный ад наяву: материализуются самые жуткие страхи, фобии и чувство вины. Даже враждебные сущности Закулисья, случайно попавшие сюда, сходят с ума и погибают.",
         entities: []
+      },
+      // NEW: Level 3999 — The True Ending
+      {
+        id: "level-3999",
+        code: "LEVEL 3999",
+        name: "Level 3999 — \"The True Ending\"",
+        name_ru: "Уровень 3999 — «Истинный финал» (The True Ending)",
+        danger: "SAFE",
+        survivalRate: "100%",
+        classInfo: "Class Sanctuary // Verified Reality Exit",
+        subtitle_ru: "Класс Убежище // Подтверждённый выход в Реальность",
+        biome: "Infinite Neon Retro Arcade & Nebula Mall",
+        biome_ru: "Бесконечный неоновый ретро-аркадный центр в туманности",
+        exits: "Completing your personal checklist opens the glass doors to Reality; service elevators lead to Level 0, Level 4, or Level 37.",
+        exits_ru: "Выполнение личного списка заданий открывает стеклянные двери в Реальность; лифты ведут на Уровень 0, Уровень 4 и Уровень 37.",
+        exitsList: [
+          { id: "level-0", label: "LEVEL 0" },
+          { id: "level-4", label: "LEVEL 4" },
+          { id: "level-37", label: "LEVEL 37" }
+        ],
+        image: "images/level-3999.jpg",
+        shortDesc: "An infinite neon-lit retro arcade and mall sanctuary overlooking a cosmic purple nebula, holding the true exit back to Reality.",
+        shortDesc_ru: "Бесконечный неоновый аркадный комплекс с панорамными окнами в пурпурную космическую туманность — место, где находится истинный выход домой.",
+        description: "Level 3999 is an infinite, vibrant two-story shopping mall and retro arcade bathed in warm pink and cyan neon lighting, bordered by towering panoramic glass walls that look out into a breathtaking purple-pink cosmic nebula. Every arcade cabinet is free-to-play, food courts automatically replenish with warm meals and Almond Water, and zero hostile entities can manifest here. Upon arrival, each wanderer receives a mysterious paper checklist of harmless tasks—completing every item on the list unlocks the grand glass front doors, allowing the wanderer to step back into the Frontrooms (Baseline Reality).",
+        description_ru: "Уровень 3999 — это бесконечный, уютный двухэтажный торговый центр и ретро-аркадный зал, залитый тёплым розово-голубым неоном, с гигантскими панорамными окнами, выходящими прямо в завораживающую пурпурно-розовую космическую туманность. Все игровые автоматы работают бесплатно, фуд-корты сами наполняются горячей едой и Миндальной водой, а враждебные сущности физически не могут сюда проникнуть. Каждый попавший сюда странник получает лист со списком простых заданий — как только все пункты выполнены, главные стеклянные двери отворяются, возвращая человека домой в настоящую Реальность.",
+        entities: []
       }
     ];
 
@@ -1201,19 +1416,38 @@
         usage: isRu ? obj.usage_ru : obj.usage
       }));
 
+    const localizeLogs = (isRu) =>
+      RAW_LOGS.map((lg) => ({
+        ...lg,
+        title: isRu ? lg.title_ru : lg.title,
+        author: isRu ? lg.author_ru : lg.author,
+        segments: lg.segments.map((seg) => ({
+          text: isRu ? seg.text_ru : seg.text,
+          redacted: isRu ? seg.redacted_ru : seg.redacted
+        }))
+      }));
+
     const SITE_DATA = {
       en: {
         levels: localizeLevels(false),
         entities: localizeEntities(false),
         objects: localizeObjects(false),
+        logs: localizeLogs(false),
         ui: {
           osVersion: "M.E.G. ARCHIVE_OS v4.20",
           clearance: "CLEARANCE: LEVEL-4 [OVERSEER]",
+          sanityLabel: "SANITY",
+          drinkAlmondBtn: "[ 💧 +SANITY ]",
+          drinkAlmondFullBtn: "[ 💧 DRINK ALMOND WATER (+35% SANITY) ]",
+          sanityWarningBanner: "⚠️ COGNITIVE HAZARD ALERT: SANITY CRITICALLY LOW (<40%). CONSUME ALMOND WATER IMMEDIATELY OR VISIT LEVEL 3999.",
+          brownoutAlert: "⚡ POWER SURGE // VOLTAGE DROP 74V",
+          brownoutBtnTitle: "Trigger Power Brownout Test",
           audioOn: "[ 🔊 AUDIO: ON ]",
           audioOff: "[ 🔊 AUDIO: OFF ]",
           randomFileBtn: "[ 🎲 RANDOM FILE ]",
           entityIndexBtn: "ENTITY_INDEX",
           objectsTabBtn: "SUPPLY_OBJECTS",
+          logsTabBtn: "CLASSIFIED_LOGS",
           heroBadge: "// NON-EUCLIDEAN DATABASE TERMINAL",
           heroTitle1: "THE BACKROOMS",
           heroTitle2: "ARCHIVE",
@@ -1253,6 +1487,12 @@
           objectsSub: "// ANOMALOUS_MATERIEL_ARCHIVE",
           objectsTitle: "BACKROOMS OBJECTS & SUPPLIES",
           objectsHint: "Inspect vital survival resources, anomalous liquids, and exploration equipment.",
+          logsSub: "// EYES_ONLY_DECRYPTION_TERMINAL",
+          logsTitle: "CLASSIFIED M.E.G. INCIDENT LOGS",
+          logsHint: "Click black [REDACTED] bars to decrypt expunged field telemetry.",
+          decryptAllBtn: "[ 🔓 DECRYPT ALL FILES ]",
+          encryptAllBtn: "[ 🔒 REDACT ALL FILES ]",
+          redactedTag: "[REDACTED // CLICK]",
           threatSuffix: "THREAT",
           footerLeft: "MAJOR EXPLORER GROUP (M.E.G.) PUBLIC TERMINAL",
           footerRight: "ENCRYPTED CONNECTION // NO-CLIP TELEMETRY SYNCHRONIZED",
@@ -1266,7 +1506,7 @@
           modalExitsMap: "INTERACTIVE EXIT MAP",
           modalEnvDesc: "// ENVIRONMENTAL_DESCRIPTION & ANOMALOUS PROPERTIES",
           modalConfirmedEntities: "// CONFIRMED HOSTILE ENTITIES IN THIS SECTOR",
-          modalNoEntities: "ZERO BIOLOGICAL ENTITIES DETECTED — THE ENVIRONMENT ITSELF IS LETHAL.",
+          modalNoEntities: "ZERO BIOLOGICAL ENTITIES DETECTED — SAFE SANCTUARY OR ENVIRONMENTAL ANOMALY.",
           modalClickEntityHint: "[CLICK ENTITY TO INSPECT]",
           modalFileBtn: "[FILE →]",
           modalFooterVerified: "ARCHIVE LOG // VERIFIED BY M.E.G. CARTOGRAPHY",
@@ -1290,14 +1530,22 @@
         levels: localizeLevels(true),
         entities: localizeEntities(true),
         objects: localizeObjects(true),
+        logs: localizeLogs(true),
         ui: {
           osVersion: "M.E.G. АРХИВ_ОС v4.20",
           clearance: "ДОПУСК: УРОВЕНЬ-4 [СМОТРИТЕЛЬ]",
+          sanityLabel: "РАССУДОК",
+          drinkAlmondBtn: "[ 💧 +РАССУДОК ]",
+          drinkAlmondFullBtn: "[ 💧 ВЫПИТЬ МИНДАЛЬНУЮ ВОДУ (+35% РАССУДКА) ]",
+          sanityWarningBanner: "⚠️ КОГНИТИВНАЯ УГРОЗА: РАССУДОК КРИТИЧЕСКИ НИЗОК (<40%). НЕМЕДЛЕННО ВЫПЕЙТЕ МИНДАЛЬНУЮ ВОДУ ИЛИ ПЕРЕЙДИТЕ НА УРОВЕНЬ 3999.",
+          brownoutAlert: "⚡ СКАЧОК НАПРЯЖЕНИЯ // ПРОСАДКА СЕТИ 74В",
+          brownoutBtnTitle: "Тест перебоя питания ламп",
           audioOn: "[ 🔊 AUDIO: ON ]",
           audioOff: "[ 🔊 AUDIO: OFF ]",
           randomFileBtn: "[ 🎲 RANDOM FILE ]",
           entityIndexBtn: "ИНДЕКС_СУЩНОСТЕЙ",
           objectsTabBtn: "АРХИВ_ПРЕДМЕТОВ",
+          logsTabBtn: "СЕКРЕТНЫЕ_ЖУРНАЛЫ",
           heroBadge: "// ТЕРМИНАЛ НЕЕВКЛИДОВОЙ БАЗЫ ДАННЫХ",
           heroTitle1: "АРХИВ",
           heroTitle2: "ЗАКУЛИСЬЯ",
@@ -1337,6 +1585,12 @@
           objectsSub: "// АРХИВ_АНОМАЛЬНЫХ_ПРЕДМЕТОВ",
           objectsTitle: "ПРЕДМЕТЫ И РЕСУРСЫ ЗАКУЛИСЬЯ",
           objectsHint: "Изучите ключевые ресурсы для выживания, аномальные жидкости и экипировку странников.",
+          logsSub: "// ТЕРМИНАЛ_ДЕШИФРОВКИ_АРХИВОВ",
+          logsTitle: "ЗАСЕКРЕЧЕННЫЕ ЖУРНАЛЫ Б.И.Г.",
+          logsHint: "Нажимайте на чёрные плашки [ДАННЫЕ УДАЛЕНЫ], чтобы расшифровать скрытую правду.",
+          decryptAllBtn: "[ 🔓 РАСШИФРОВАТЬ ВСЁ ]",
+          encryptAllBtn: "[ 🔒 ЗАСЕКРЕТИТЬ ВСЁ ]",
+          redactedTag: "[ДАННЫЕ УДАЛЕНЫ]",
           threatSuffix: "УГРОЗА",
           footerLeft: "ПУБЛИЧНЫЙ ТЕРМИНАЛ Б.И.Г. (MAJOR EXPLORER GROUP)",
           footerRight: "ЗАШИФРОВАННОЕ СОЕДИНЕНИЕ // ТЕЛЕМЕТРИЯ СИНХРОНИЗИРОВАНА",
@@ -1350,7 +1604,7 @@
           modalExitsMap: "КАРТА ПЕРЕХОДОВ МЕЖДУ СЕКТОРАМИ",
           modalEnvDesc: "// ОПИСАНИЕ СРЕДЫ И АНОМАЛЬНЫЕ СВОЙСТВА",
           modalConfirmedEntities: "// ПОДТВЕРЖДЁННЫЕ ВРАЖДЕБНЫЕ СУЩНОСТИ В СЕКТОРЕ",
-          modalNoEntities: "БИОЛОГИЧЕСКИХ СУЩНОСТЕЙ НЕ ОБНАРУЖЕНО — САМА СРЕДА УРОВНЯ СМЕРТОНОСНА.",
+          modalNoEntities: "ВРАЖДЕБНЫХ СУЩНОСТЕЙ НЕ ОБНАРУЖЕНО — БЕЗОПАСНОЕ УБЕЖИЩЕ ИЛИ МЕНТАЛЬНАЯ АНОМАЛИЯ.",
           modalClickEntityHint: "[НАЖМИТЕ ДЛЯ ПРОСМОТРА]",
           modalFileBtn: "[ДОСЬЕ →]",
           modalFooterVerified: "АРХИВНЫЙ ЛОГ // ПОДТВЕРЖДЕНО КАРТОГРАФИЕЙ Б.И.Г.",
@@ -1449,11 +1703,21 @@
       // Level Fun Partygoer Hack State
       const [partyHacked, setPartyHacked] = useState(false);
 
+      // Feature #4: Sanity Meter State (0 - 100%)
+      const [sanity, setSanity] = useState(100);
+
+      // Feature #2: Power Brownout / Flicker State
+      const [isBrownout, setIsBrownout] = useState(false);
+
+      // Feature #3: Classified Logs Revealed Redactions Map
+      const [revealedRedactions, setRevealedRedactions] = useState({});
+
       const currentSiteData = SITE_DATA[lang] || SITE_DATA.en;
       const t = currentSiteData.ui;
       const currentLevels = currentSiteData.levels;
       const currentEntities = currentSiteData.entities;
       const currentObjects = currentSiteData.objects;
+      const currentLogs = currentSiteData.logs;
 
       // Resolve active modal objects dynamically from SITE_DATA[lang]
       const activeLevel = useMemo(
@@ -1468,6 +1732,89 @@
         () => currentObjects.find((o) => o.id === activeObjectId) || null,
         [currentObjects, activeObjectId]
       );
+
+      // Sanity Drain on Dangerous/Hostile/Deadly Levels & Regeneration on Level 3999
+      useEffect(() => {
+        const drainLevels = {
+          "level-6": 4,
+          "level-8": 5,
+          "level-9": 4,
+          "level-5": 3,
+          "level-fun": 7,
+          "level-!": 9,
+          "level-666": 12
+        };
+
+        const interval = setInterval(() => {
+          if (activeLevelId && drainLevels[activeLevelId]) {
+            setSanity((prev) => Math.max(0, prev - drainLevels[activeLevelId]));
+          } else if (activeLevelId === "level-3999" || activeLevelId === "level-10") {
+            setSanity((prev) => Math.min(100, prev + 6));
+          }
+        }, 2000);
+
+        return () => clearInterval(interval);
+      }, [activeLevelId]);
+
+      const handleDrinkAlmondWater = (e) => {
+        if (e) e.stopPropagation();
+        setSanity((prev) => Math.min(100, prev + 35));
+        soundEngine.playSanityRestore();
+      };
+
+      // Power Brownout / Fluorescent Flicker Trigger (every 52 seconds + manual trigger)
+      const triggerPowerBrownout = () => {
+        if (isBrownout) return;
+        setIsBrownout(true);
+        soundEngine.triggerBrownout();
+        setTimeout(() => {
+          setIsBrownout(false);
+        }, 1250);
+      };
+
+      useEffect(() => {
+        const id = setInterval(() => {
+          triggerPowerBrownout();
+        }, 52000);
+        return () => clearInterval(id);
+      }, [isBrownout]);
+
+      // Toggle single redacted block or all blocks
+      const toggleRedactedItem = (key) => {
+        soundEngine.playDecryptBlip();
+        setRevealedRedactions((prev) => ({
+          ...prev,
+          [key]: !prev[key]
+        }));
+      };
+
+      const allRedactionKeys = useMemo(() => {
+        const keys = [];
+        RAW_LOGS.forEach((lg) => {
+          lg.segments.forEach((seg, idx) => {
+            if (seg.redacted) keys.push(`${lg.id}-${idx}`);
+          });
+        });
+        return keys;
+      }, []);
+
+      const areAllDecrypted = useMemo(
+        () => allRedactionKeys.length > 0 && allRedactionKeys.every((k) => revealedRedactions[k]),
+        [allRedactionKeys, revealedRedactions]
+      );
+
+      const handleToggleAllRedactions = () => {
+        soundEngine.playDecryptBlip();
+        if (areAllDecrypted) {
+          setRevealedRedactions({});
+        } else {
+          const next = {};
+          allRedactionKeys.forEach((k) => {
+            next[k] = true;
+          });
+          setRevealedRedactions(next);
+        }
+      };
 
       // Partygoer Hack 3-second timer
       useEffect(() => {
@@ -1602,22 +1949,88 @@
       const getEntityById = (id) => currentEntities.find((ent) => ent.id === id);
 
       return (
-        <div className="min-h-screen flex flex-col bg-[#070709] text-zinc-200 relative z-10">
+        <div className={`min-h-screen flex flex-col bg-[#070709] text-zinc-200 relative z-10 ${isBrownout ? "crt-brownout" : ""}`}>
           
+          {/* LOW SANITY VIGNETTE OVERLAY */}
+          {sanity < 40 && (
+            <div
+              className="fixed inset-0 pointer-events-none z-40 transition-opacity duration-700 animate-pulse"
+              style={{
+                background: "radial-gradient(circle, transparent 50%, rgba(220, 38, 38, 0.28) 100%)"
+              }}
+            />
+          )}
+
           {/* TOP TERMINAL STATUS BAR: CONTROLS PINNED RIGHT */}
           <header className="sticky top-0 z-30 bg-[#070709]/95 backdrop-blur-md border-b border-zinc-800/90 px-4 sm:px-8 py-2.5">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs tracking-widest">
+            <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs tracking-widest">
               <div className="flex items-center gap-3 shrink-0">
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-400/10 border border-amber-400/40 text-amber-400 font-bold">
                   <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
                   {t.osVersion}
                 </span>
-                <span className="hidden xl:inline text-zinc-500">{t.clearance}</span>
+                {isBrownout ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-950 border border-red-500 text-red-300 font-bold animate-pulse">
+                    {t.brownoutAlert}
+                  </span>
+                ) : (
+                  <span className="hidden xl:inline text-zinc-500">{t.clearance}</span>
+                )}
               </div>
 
               {/* RIGHT-ALIGNED CONTROL SUITE */}
-              <div className="ml-auto flex items-center gap-2 sm:gap-3 text-zinc-400 shrink-0">
-                <span className="hidden lg:inline text-amber-400/90 font-mono">{clock}</span>
+              <div className="ml-auto flex flex-wrap items-center gap-2 sm:gap-2.5 text-zinc-400 shrink-0">
+                <span className="hidden 2xl:inline text-amber-400/90 font-mono">{clock}</span>
+
+                {/* SANITY METER INDICATOR */}
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-zinc-950 border border-zinc-800">
+                  <span className="text-[10px] font-bold tracking-widest text-zinc-400">
+                    🧠 {t.sanityLabel}:
+                  </span>
+                  <span
+                    className={`text-[11px] font-bold font-mono ${
+                      sanity > 65
+                        ? "text-emerald-400"
+                        : sanity >= 40
+                        ? "text-amber-400"
+                        : "text-rose-500 animate-pulse"
+                    }`}
+                  >
+                    {sanity}%
+                  </span>
+                  <div className="w-12 h-1.5 bg-zinc-900 border border-zinc-700 overflow-hidden hidden sm:block">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        sanity > 65
+                          ? "bg-emerald-400"
+                          : sanity >= 40
+                          ? "bg-amber-400"
+                          : "bg-rose-500"
+                      }`}
+                      style={{ width: `${sanity}%` }}
+                    />
+                  </div>
+                  {sanity < 100 && (
+                    <button
+                      type="button"
+                      onClick={handleDrinkAlmondWater}
+                      title="Restore +35% Sanity with Almond Water"
+                      className="px-1.5 py-0.5 bg-cyan-950 hover:bg-cyan-400 hover:text-black text-cyan-300 border border-cyan-500/50 text-[10px] font-bold tracking-wider transition-colors"
+                    >
+                      {t.drinkAlmondBtn}
+                    </button>
+                  )}
+                </div>
+
+                {/* POWER BROWNOUT TEST BUTTON */}
+                <button
+                  type="button"
+                  onClick={triggerPowerBrownout}
+                  title={t.brownoutBtnTitle}
+                  className="px-2 py-1 text-[11px] font-bold bg-zinc-950 text-amber-400 border border-zinc-700 hover:border-amber-400 transition-colors"
+                >
+                  ⚡
+                </button>
 
                 {/* AUDIO TOGGLE BUTTON */}
                 <button
@@ -1647,9 +2060,19 @@
                     const el = document.getElementById("objects-section");
                     if (el) el.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden md:inline"
+                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden lg:inline"
                 >
                   [{t.objectsTabBtn}]
+                </button>
+
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("classified-logs");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden lg:inline"
+                >
+                  [{t.logsTabBtn}]
                 </button>
 
                 <button
@@ -1657,7 +2080,7 @@
                     const el = document.getElementById("entities-codex");
                     if (el) el.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden md:inline"
+                  className="hover:text-amber-400 underline decoration-amber-400/50 underline-offset-4 transition-colors hidden xl:inline"
                 >
                   [{t.entityIndexBtn}]
                 </button>
@@ -1690,6 +2113,20 @@
                 </div>
               </div>
             </div>
+
+            {/* CRITICAL SANITY WARNING BANNER */}
+            {sanity < 40 && (
+              <div className="max-w-7xl mx-auto mt-2 px-3 py-1.5 bg-rose-950/90 border border-rose-500 text-rose-200 text-[11px] font-bold tracking-widest flex flex-wrap items-center justify-between gap-2">
+                <span>{t.sanityWarningBanner}</span>
+                <button
+                  type="button"
+                  onClick={handleDrinkAlmondWater}
+                  className="px-2.5 py-0.5 bg-cyan-400 text-black font-bold uppercase tracking-widest hover:bg-cyan-300"
+                >
+                  {t.drinkAlmondFullBtn}
+                </button>
+              </div>
+            )}
           </header>
 
           {/* 1. HERO SECTION */}
@@ -1967,7 +2404,87 @@
                       <span>{obj.origin}</span>
                       <span className="text-cyan-400 font-bold group-hover:translate-x-1 transition-transform">→</span>
                     </div>
+                    {obj.id === "obj-almond-water" && (
+                      <div
+                        onClick={handleDrinkAlmondWater}
+                        className="mt-2.5 w-full py-1.5 px-2 bg-cyan-950/90 hover:bg-cyan-400 hover:text-black border border-cyan-500/60 text-cyan-300 text-[10px] font-bold tracking-widest uppercase text-center transition-colors"
+                      >
+                        {t.drinkAlmondFullBtn}
+                      </div>
+                    )}
                   </button>
+                ))}
+              </div>
+            </section>
+
+            {/* 5. CLASSIFIED M.E.G. INCIDENT LOGS (INTERACTIVE [REDACTED] SPOILERS) */}
+            <section id="classified-logs" className="pt-6 border-t border-zinc-800/90">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+                <div>
+                  <div className="text-xs text-amber-400 tracking-[0.2em] uppercase mb-1">
+                    {t.logsSub}
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-wider uppercase text-white">
+                    {t.logsTitle} ({currentLogs.length})
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    {t.logsHint}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleAllRedactions}
+                  className="px-3.5 py-2 bg-zinc-950 hover:bg-amber-400 hover:text-black text-amber-400 border border-amber-400/60 text-xs font-bold tracking-widest uppercase transition-all shrink-0"
+                >
+                  {areAllDecrypted ? t.encryptAllBtn : t.decryptAllBtn}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {currentLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="terminal-box corner-accent p-5 flex flex-col justify-between bg-[#0a0b0e]"
+                  >
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-zinc-800/90 text-[11px]">
+                        <span className="font-bold text-amber-400 tracking-widest uppercase">
+                          {log.code}
+                        </span>
+                        <span className="px-2 py-0.5 bg-red-950/70 border border-red-500/50 text-red-300 font-bold tracking-widest text-[10px]">
+                          {log.clearance}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-white tracking-wide mb-1">
+                        {log.title}
+                      </h3>
+                      <div className="text-[11px] text-zinc-500 mb-3 font-mono">
+                        {log.author} // {log.date}
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-mono bg-zinc-950/80 border border-zinc-800/90 p-3.5">
+                        {log.segments.map((seg, idx) => {
+                          if (seg.text) {
+                            return <span key={idx}>{seg.text}</span>;
+                          }
+                          const key = `${log.id}-${idx}`;
+                          const isRevealed = !!revealedRedactions[key];
+                          return (
+                            <span
+                              key={idx}
+                              onClick={() => toggleRedactedItem(key)}
+                              className={isRevealed ? "redacted-revealed" : "redacted-bar"}
+                              title="Click to toggle decryption"
+                            >
+                              {isRevealed ? seg.redacted : t.redactedTag}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -2336,7 +2853,16 @@
                     </p>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex flex-wrap items-center justify-end gap-3">
+                    {activeObject.id === "obj-almond-water" && (
+                      <button
+                        type="button"
+                        onClick={handleDrinkAlmondWater}
+                        className="w-full sm:w-auto px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold uppercase tracking-widest transition-colors"
+                      >
+                        {t.drinkAlmondFullBtn}
+                      </button>
+                    )}
                     <button
                       onClick={() => setActiveObjectId(null)}
                       className="w-full sm:w-auto px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-black text-xs font-bold uppercase tracking-widest transition-colors"
