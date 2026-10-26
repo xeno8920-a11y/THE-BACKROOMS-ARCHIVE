@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>THE BACKROOMS ARCHIVE // M.E.G. DATABASE</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23070709' stroke='%23f5be0b' stroke-width='4'/%3E%3Cpath d='M16 20h32v6H16zm0 11h24v6H16zm0 11h32v6H16z' fill='%23f5be0b'/%3E%3Ccircle cx='48' cy='34' r='4' fill='%23ef4444'/%3E%3C/svg%3E" />
   
   <!-- Google Fonts: JetBrains Mono & Share Tech Mono (with Cyrillic support) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -812,6 +813,184 @@
     const soundEngine = new AmbientEngine();
 
     // ============================================================================
+    // HERO BACKGROUND & ENTITIES REGISTRY (DECLARED STRICTLY ONCE)
+    // ============================================================================
+    const HERO_BG_URL = "images/hero-bg.jpg";
+
+    const RAW_ENTITIES = [
+      {
+        id: "bacteria",
+        name: "Bacteria (Lifeform)",
+        name_ru: "Бактерия (Форма жизни)",
+        classification: "Entity 001 // Asymmetric Stalker",
+        classification_ru: "Сущность 001 // Асимметричный сталкер",
+        threatLevel: "EXTREME",
+        threat_ru: "ЭКСТРЕМАЛЬНАЯ",
+        habitat: "Level 0",
+        habitat_ru: "Уровень 0",
+        image: "images/entity-bacteria.jpg",
+        imagePosition: "center top",
+        description: "A towering, stick-like biomechanical horror composed of tangled black wire-like tendons. It emits distorted, warbling mechanical screeches and mimics human cries to lure isolated wanderers in Level 0.",
+        description_ru: "Высокая, похожая на сплетение чёрных проводов и сухожилий биомеханическая тварь. Издаёт искажённый рев и способна имитировать человеческие крики о помощи, заманивая одиноких странников в тупики Уровня 0.",
+        survivalTip: "Never follow voices in Level 0. If you hear metallic scraping or distorted howling, sprint in the opposite direction and break line of sight around corners.",
+        survivalTip_ru: "Никогда не идите на голоса на Уровне 0. При звуках металлического скрежета или искажённого воя немедленно бегите в противоположную сторону, петляя за углами."
+      },
+      {
+        id: "smiler",
+        name: "Smilers",
+        name_ru: "Улыбающиеся (Smilers)",
+        classification: "Entity 003 // Photophobic Ambush Predator",
+        classification_ru: "Сущность 003 // Светобоязненный хищник",
+        threatLevel: "SEVERE",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 1, Level 2, Level 9, Level !",
+        habitat_ru: "Уровень 1, Уровень 2, Уровень 9, Уровень !",
+        image: "images/entity-smiler.jpg",
+        imagePosition: "center center",
+        description: "Recognizable only by their unnatural, luminescent white grin and glowing eyes suspended in pitch-black darkness. Smilers are attracted to light sources and will lunged viciously at anyone carrying an active flashlight.",
+        description_ru: "Распознаются только по неестественной светящейся белоснежной улыбке и глазам, парящим в кромешной тьме. Их привлекают источники света — они яростно атакуют любого, кто держит включённый фонарик.",
+        survivalTip: "Maintain steady eye contact while slowly backing away. Turn off or throw your light source as a distraction; never turn your back and run in panic.",
+        survivalTip_ru: "Держите зрительный контакт и медленно отступайте спиной вперёд. Выключите фонарик или бросьте его в сторону для отвлечения внимания; никогда не поворачивайтесь спиной."
+      },
+      {
+        id: "hound",
+        name: "Hounds",
+        name_ru: "Гончие (Hounds)",
+        classification: "Entity 008 // Quadrupedal Pack Scavenger",
+        classification_ru: "Сущность 008 // Четвероногий падальщик",
+        threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 1, Level 2, Level 4, Level 5, Level 8, Level 9, Level 10",
+        habitat_ru: "Уровни 1, 2, 4, 5, 8, 9, 10",
+        image: "images/entity-hound.jpg",
+        imagePosition: "center top",
+        description: "Emaciated, hairless humanoids with hyper-extended limbs that prowl on all fours. Their faces are obscured by matted black hair and gaping jaws capable of inflicting rabid, infectious bites.",
+        description_ru: "Истощённые четвероногие гуманоиды с вывернутыми суставами и спутанными чёрными волосами, закрывающими морду. Охотятся стаями, а их укусы переносят опасную инфекцию.",
+        survivalTip: "Direct eye contact intimidates a lone Hound briefly. Shine a bright flashlight directly into their eyes and retreat slowly without sudden movements.",
+        survivalTip_ru: "Прямой взгляд ненадолго сковывает одиночную Гончую. Направьте яркий луч фонаря ей прямо в глаза и медленно отходите без резких движений."
+      },
+      {
+        id: "skin-stealer",
+        name: "Skin-Stealers",
+        name_ru: "Кожекрады (Skin-Stealers)",
+        classification: "Entity 010 // Anthropomorphic Mimic",
+        classification_ru: "Сущность 010 // Антропоморфный мимик",
+        threatLevel: "SEVERE",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 1, Level 2, Level 9, Level !",
+        habitat_ru: "Уровень 1, Уровень 2, Уровень 9, Уровень !",
+        image: "images/entity-skin-stealer.jpg",
+        imagePosition: "center top",
+        description: "Tall, pale yellow humanoids that harvest the skin of fallen wanderers and wear it as a grotesque disguise to infiltrate human camps. Their blood is translucent and their speech sounds like stitched-together radio static.",
+        description_ru: "Крупные бледно-жёлтые гуманоиды, сдирающие кожу с погибших путников и надевающие её как маскировку для проникновения на базы людей. Их кровь прозрачна, а речь звучит как обрывочные помехи.",
+        survivalTip: "Inspect fellow wanderers for colorless blood, sunken eyes, or repetitive vocal phrases. Avoid contact when they are hungry and unmasked.",
+        survivalTip_ru: "Проверяйте незнакомцев на наличие прозрачной крови, запавших глаз и повторяющихся заученных фраз. Держитесь подальше, когда они голодны."
+      },
+      {
+        id: "clump",
+        name: "Clumps",
+        name_ru: "Сгустки / Комы (Clumps)",
+        classification: "Entity 017 // Multi-Limbed Amalgamation",
+        classification_ru: "Сущность 017 // Многорукий конгломерат",
+        threatLevel: "EXTREME",
+        threat_ru: "ЭКСТРЕМАЛЬНАЯ",
+        habitat: "Level 2, Level !",
+        habitat_ru: "Уровень 2, Уровень !",
+        image: "images/entity-clump.jpg",
+        imagePosition: "center center",
+        description: "Writhing spherical masses of dozens of human arms and legs fused together around a central jaw. They hide inside tight ceiling vents and behind steam pipes, capable of lunging at blinding speeds.",
+        description_ru: "Извивающиеся шарообразные сплетения из десятков человеческих рук и ног вокруг центральной пасти. Прячутся в узких вентиляционных шахтах и за паровыми трубами, совершая молниеносные броски.",
+        survivalTip: "Never walk directly beneath open ceiling grates or unsealed pipe junctions on Level 2. Listen for wet slapping sounds.",
+        survivalTip_ru: "Никогда не проходите прямо под открытыми вентиляционными решётками или узлами труб на Уровне 2. Прислушивайтесь к влажным шлепкам ладоней."
+      },
+      {
+        id: "partygoer",
+        name: "Partygoers =)",
+        name_ru: "Тусовщики (Partygoers) =)",
+        classification: "Entity 067 // Sentient Hive Infector",
+        classification_ru: "Сущность 067 // Разумный заразитель улья",
+        threatLevel: "LETHAL",
+        threat_ru: "СМЕРТЕЛЬНАЯ",
+        habitat: "Level Fun, Level !",
+        habitat_ru: "Уровень Веселья, Уровень !",
+        image: "images/entity-partygoer.jpg",
+        imagePosition: "center 8%",
+        description: "Tall bipedal entities covered in leathery yellow skin with a crudesmiley face carved into their surface. Highly intelligent, they hack M.E.G. terminals to lure wanderers into Level Fun, where physical contact mutates victims into new Partygoers.",
+        description_ru: "Высокие двуногие существа, обтянутые матовой жёлтой кожей с вырезанным кровавым смайликом «=)» вместо лица. Обладают высоким интеллектом, взламывают терминалы Б.И.Г. и одним прикосновением обращают жертву в нового Тусовщика.",
+        survivalTip: "Ignore any database entry ending with '=)' and never touch floating red balloons or confetti.",
+        survivalTip_ru: "Игнорируйте любые сообщения в базе данных со скобкой «=)» и никогда не прикасайтесь к красным воздушным шарикам."
+      },
+      {
+        id: "hydrolitis",
+        name: "Hydrolitis Plague",
+        name_ru: "Гидролитовая чума (Hydrolitis)",
+        classification: "Entity 019 // Waterborne Microbial Pathogen",
+        classification_ru: "Сущность 019 // Водный патоген",
+        threatLevel: "BIOHAZARD",
+        threat_ru: "БИОУГРОЗА",
+        habitat: "Level 37 (Stagnant Dark Drains)",
+        habitat_ru: "Уровень 37 (Тёмные сливы)",
+        image: "images/entity-hydrolitis.jpg",
+        imagePosition: "center center",
+        description: "An anomalous bacterial colony thriving in unlit, stagnant water basins of the Poolrooms. Infection causes rapid hypothermia, delirium, and internal necrosis within hours of exposure.",
+        description_ru: "Аномальная бактериальная колония, размножающаяся в неосвещённых застойных резервуарах Уровня 37. Заражение вызывает стремительную лихорадку, галлюцинации и разрушение тканей.",
+        survivalTip: "Only wade through well-lit, circulating turquoise pools. Drink Almond Water immediately if exposed to dark drain water.",
+        survivalTip_ru: "Передвигайтесь только по хорошо освещённым проточным бассейнам. При контакте с тёмной водой немедленно выпейте Миндальную воду."
+      },
+      {
+        id: "deathmoths",
+        name: "Deathmoths",
+        name_ru: "Смертельные мотыльки (Deathmoths)",
+        classification: "Entity 004 // Phototactic Aerial Predator",
+        classification_ru: "Сущность 004 // Светочувствительный хищник",
+        threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 5, Level 1",
+        habitat_ru: "Уровень 5, Уровень 1",
+        image: "images/entity-deathmoths.jpg",
+        imagePosition: "center center",
+        description: "Colossal anomalous insects with a 1.5-meter wingspan. Female Deathmoths are aggressive aerial predators coated in corrosive, neurotoxic wing dust and are irresistibly drawn to flashlights and lanterns.",
+        description_ru: "Огромные насекомые с размахом крыльев до 1.5 м. Агрессивно летят на любой источник света. Их крылья покрыты токсичной пыльцой и кислотной слизью.",
+        survivalTip: "Extinguish all light sources immediately upon hearing heavy wingbeats and press yourself flat against the floor.",
+        survivalTip_ru: "Главный способ спастись — мгновенно выключить любой свет при звуке тяжёлых взмахов крыльев и замереть."
+      },
+      {
+        id: "whisperers",
+        name: "Whisperers",
+        name_ru: "Шептуны (Whisperers)",
+        classification: "Entity 088 // Acoustic Void Hunter",
+        classification_ru: "Сущность 088 // Слепые охотники",
+        threatLevel: "HIGH",
+        threat_ru: "ВЫСОКАЯ",
+        habitat: "Level 6",
+        habitat_ru: "Уровень 6",
+        image: "images/entity-whisperers.jpg",
+        imagePosition: "center top",
+        description: "Shadowy entities native to the absolute darkness of Level 6. They stalk wanderers by sound and whisper familiar names, childhood memories, and phrases from your past to trick you into speaking.",
+        description_ru: "Сущности, обитающие в абсолютной тьме Уровня 6. Шепчут прямо над ухом имена близких и фразы из твоей жизни, чтобы спровоцировать ответ. Если ответишь — мгновенно атакуют.",
+        survivalTip: "Maintain absolute silence. Never reply to voices in the dark, even if they sound like someone you know.",
+        survivalTip_ru: "Храните гробовое молчание. Ни при каких обстоятельствах не отвечайте на голоса во тьме."
+      },
+      {
+        id: "cave-spiders",
+        name: "Cave Spiders",
+        name_ru: "Пещерные пауки (Cave Spiders)",
+        classification: "Entity 114 // Seismic Arachnid Predator",
+        classification_ru: "Сущность 114 // Слепой охотник",
+        threatLevel: "DEADLY",
+        threat_ru: "СМЕРТЕЛЬНАЯ",
+        habitat: "Level 8",
+        habitat_ru: "Уровень 8",
+        image: "images/entity-cave-spiders.jpg",
+        imagePosition: "center center",
+        description: "Blind, long-legged arachnids the size of wolves that skitter silently across cavern ceilings. They sense the faintest seismic vibrations through rock and webbing, dropping down onto moving prey.",
+        description_ru: "Слепые ядовитые пауки на Уровне 8, тонко чувствующие любые вибрации камня и паутины. Бесшумно передвигаются по потолку пещер.",
+        survivalTip: "If you hear rapid chittering or clicking above you — freeze completely until the sound passes.",
+        survivalTip_ru: "Если услышишь сухое щёлканье над головой — замри и не двигайся, пока они не уползут."
+      }
+    ];
+
+    // ============================================================================
     // OBJECTS / ITEMS REGISTRY (WITH LOCAL OBJECT-*.JPG PATHS)
     // ============================================================================
     const RAW_OBJECTS = [
@@ -960,84 +1139,6 @@
           { redacted: "only wanderers who have never consumed Liquid Pain or harmed another human can see the doors", redacted_ru: "стеклянные двери видят только те странники, которые ни разу не причинили вреда другому человеку в Закулисье" },
           { text: ".", text_ru: "." }
         ]
-      }
-    ];
-
-    // ============================================================================
-    // OBJECTS / ITEMS REGISTRY
-    // ============================================================================
-    const RAW_OBJECTS = [
-      {
-        id: "obj-almond-water",
-        name: "Almond Water",
-        name_ru: "Миндальная вода (Almond Water)",
-        classification: "Object 001 // Vital Sustenance & Panacea",
-        classification_ru: "Объект 001 // Жизненно важный стабилизатор",
-        dangerRating: "SAFE / BENEFICIAL",
-        danger_ru: "БЕЗОПАСНО / ПОЛЕЗНО",
-        origin: "Level 1, Level 4, Vending Machines",
-        origin_ru: "Уровень 1, Уровень 4, Торговые автоматы",
-        image: "images/item-almond-water.jpg",
-        shortDesc: "A sweet, almond-and-vanilla scented liquid essential for surviving in the Backrooms.",
-        shortDesc_ru: "Сладковатая жидкость с ароматом миндаля и ванили — главный ключ к выживанию в Закулисье.",
-        description: "Almond Water is the single most valuable resource in the Backrooms. It possesses slight healing properties, reverses early stages of entity infections, and actively restores a wanderer's mental stability when exposed to psychological hazards. It can be found in plastic bottles, glass flasks, and vintage vending machines.",
-        description_ru: "Миндальная вода — самый ценный ресурс в Закулисье. Обладает целебными свойствами, обращает вспять ранние стадии заражений сущностями и восстанавливает рассудок странников, подвергшихся психо-аномалиям. Встречается в пластиковых бутылках, стеклянных колбах и рабочих торговых автоматах.",
-        usage: "Drink 250ml whenever hearing phantom voices or experiencing cognitive distress. Also usable to clean open wounds and soothe hostile entities.",
-        usage_ru: "Пейте по 250 мл при слуховых галлюцинациях или потере рассудка. Также подходит для обработки ран и усмирения некоторых сущностей."
-      },
-      {
-        id: "obj-liquid-pain",
-        name: "Liquid Pain",
-        name_ru: "Жидкая боль (Liquid Pain)",
-        classification: "Object 002 // Lethal Anomalous Toxin",
-        classification_ru: "Объект 002 // Смертоносный аномальный токсин",
-        dangerRating: "LETHAL HAZARD",
-        danger_ru: "СМЕРТЕЛЬНАЯ ОПАСНОСТЬ",
-        origin: "Level 2, Level 3, Unmarked Vials",
-        origin_ru: "Уровень 2, Уровень 3, Маркированные колбы",
-        image: "images/item-liquid-pain.jpg",
-        shortDesc: "A deceptively red fluid resembling Almond Water that causes immediate organ rupture.",
-        shortDesc_ru: "Обманчивая красная жидкость, похожая на вишнёвую воду, вызывающая мучительный разрыв органов.",
-        description: "A hazardous liquid that visually mimics fruit syrup or red Almond Water. Consuming even a few milliliters leads to intense burning, severe convulsions, internal hemorrhaging, and death within seconds. It occasionally drips from rusted ceiling pipes on industrial levels.",
-        description_ru: "Крайне опасная субстанция, визуально напоминающая сироп или красную миндальную воду. Приём внутрь даже нескольких капель вызывает невыносимое жжение, судороги, множественные внутренние кровотечения и мучительную смерть за несколько секунд.",
-        usage: "STRICTLY FORBIDDEN FOR CONSUMPTION. Can be collected in glass vials and used as an offensive projectile against hostile entities.",
-        usage_ru: "КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО К УПОТРЕБЛЕНИЮ. Можно аккуратно собирать в ампулы и использовать как метательное оружие против сущностей."
-      },
-      {
-        id: "obj-firesalt",
-        name: "Firesalt",
-        name_ru: "Огненная соль / Огонь памяти (Firesalt)",
-        classification: "Object 012 // High-Energy Explosive Crystal",
-        classification_ru: "Объект 012 // Энергетический взрывной кристалл",
-        dangerRating: "VOLATILE",
-        danger_ru: "НЕСТАБИЛЬНО / ВЗРЫВООПАСНО",
-        origin: "Level 5 (Boiler Room), Level 8",
-        origin_ru: "Уровень 5 (Бойлерная), Уровень 8",
-        image: "images/item-firesalt.jpg",
-        shortDesc: "Glowing amber crystals that combust violently upon physical impact or sudden pressure.",
-        shortDesc_ru: "Светящиеся янтарные кристаллы, детонирующие мощным тепловым взрывом при ударе.",
-        description: "Firesalt is a translucent crystalline mineral that emits a warm orange luminescence. When struck against a hard surface or crushed, it triggers an instantaneous thermal explosion accompanied by blinding white-hot light and searing heat capable of destroying entities.",
-        description_ru: "Прозрачный кристаллический минерал, излучающий тёплое оранжевое свечение. При сильном ударе о твёрдую поверхность или дроблении мгновенно детонирует, создавая яркую вспышку и высокотемпературную волну, способную испепелить приближающихся тварей.",
-        usage: "Handle with padded gloves. Throw crystals at hostile pursuers as makeshift flashbangs or emergency perimeter mines.",
-        usage_ru: "Переносите только в мягких контейнерах. Бросайте под ноги преследующим сущностям в качестве светошумовых и зажигательных гранат."
-      },
-      {
-        id: "obj-meg-radio",
-        name: "M.E.G. Field Radio",
-        name_ru: "Полевая рация Б.И.Г. (M.E.G. Radio)",
-        classification: "Object 044 // Telemetry Transceiver",
-        classification_ru: "Объект 044 // Полевой трансивер связи",
-        dangerRating: "TACTICAL ESSENTIAL",
-        danger_ru: "ТАКТИЧЕСКИ ВАЖНО",
-        origin: "M.E.G. Supply Outposts (Level 1, 4)",
-        origin_ru: "Аванпосты Б.И.Г. (Уровень 1, 4)",
-        image: "images/item-meg-radio.jpg",
-        shortDesc: "Reinforced military transceivers capable of cutting through non-Euclidean static.",
-        shortDesc_ru: "Усиленные полевые рации, способные пробивать неевклидовые помехи между уровнями.",
-        description: "Standard-issue communications hardware distributed to certified M.E.G. exploration teams. Utilizing quantum-entangled crystal tuners, these radios maintain intermittent voice contact across adjacent levels where conventional mobile signals instantly fail.",
-        description_ru: "Стандартное коммуникационное оборудование оперативных групп Б.И.Г. Благодаря кварцевым квантовым фильтрам способно удерживать голосовой контакт между смежными уровнями, где сотовая и стандартная радиосвязь моментально затухают.",
-        usage: "Keep tuned to emergency channel 142.85 MHz. Broadcast coordinates when pinned down by hostile entities.",
-        usage_ru: "Держите включённым на аварийной частоте 142.85 МГц. Передавайте координаты при угрозе окружения сущностями."
       }
     ];
 
@@ -1675,7 +1776,7 @@
     function App() {
       const [lang, setLang] = useState(() => {
         try {
-          return localStorage.getItem("meg_archive_lang") || "en";
+          return localStorage.getItem("backrooms_lang") || localStorage.getItem("meg_archive_lang") || "en";
         } catch (e) {
           return "en";
         }
@@ -1835,6 +1936,7 @@
       const toggleLang = (nextLang) => {
         setLang(nextLang);
         try {
+          localStorage.setItem("backrooms_lang", nextLang);
           localStorage.setItem("meg_archive_lang", nextLang);
         } catch (e) {}
       };
