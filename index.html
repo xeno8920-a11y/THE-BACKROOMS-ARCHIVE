@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>M.E.G. // THE BACKROOMS ARCHIVE [TERMINAL v4.3]</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23070709' stroke='%23f5be0b' stroke-width='4'/%3E%3Cpath d='M16 20h32v6H16zm0 11h24v6H16zm0 11h32v6H16z' fill='%23f5be0b'/%3E%3C/svg%3E" />
+  <title>M.E.G. // THE BACKROOMS ARCHIVE [TERMINAL v5.0]</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpolygon points='32,4 58,19 58,45 32,60 6,45 6,19' fill='%23070709' stroke='%23f5be0b' stroke-width='4'/%3E%3Crect x='20' y='18' width='24' height='28' fill='none' stroke='%23f5be0b' stroke-width='2.5'/%3E%3Crect x='26' y='24' width='12' height='22' fill='%23f5be0b' fill-opacity='0.25' stroke='%23f5be0b' stroke-width='2'/%3E%3C/svg%3E" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -113,6 +113,15 @@
       animation: marqueeScroll 11s linear infinite;
     }
 
+    @keyframes slowSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .spin-slow {
+      animation: slowSpin 28s linear infinite;
+      transform-origin: center;
+    }
+
     .glow-amber { text-shadow: 0 0 12px rgba(245, 190, 11, 0.45); }
     .glow-red { text-shadow: 0 0 14px rgba(239, 68, 68, 0.65); }
 
@@ -128,10 +137,10 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+    const { useState, useEffect, useMemo, useCallback } = React;
 
     // ============================================================================
-    // PROCEDURAL WEB AUDIO ENGINE (FIXED AUTOPLAY & SUSPENDED STATE)
+    // PROCEDURAL WEB AUDIO ENGINE (WITH AUTO-WAKEUP ON INTERACTION)
     // ============================================================================
     class AmbientEngine {
       constructor() {
@@ -174,7 +183,6 @@
           if (this.ctx.state === 'suspended') {
             await this.ctx.resume();
           }
-          // Если базовые осцилляторы уже созданы, просто убеждаемся, что контекст работает
           if (this.baseNodes.length > 0) {
             this.isRunning = true;
             return this.ctx.state === 'running';
@@ -186,7 +194,6 @@
           baseGain.gain.exponentialRampToValueAtTime(0.03, now + 0.6);
           baseGain.connect(this.masterGain);
 
-          // 60Hz fluorescent hum + 120Hz harmonic
           const osc60 = this.ctx.createOscillator();
           osc60.type = 'sine';
           osc60.frequency.setValueAtTime(60, now);
@@ -197,7 +204,6 @@
           const gain120 = this.ctx.createGain();
           gain120.gain.value = 0.25;
 
-          // Filtered ballast white noise
           const noiseSrc = this.ctx.createBufferSource();
           noiseSrc.buffer = this.createWhiteNoiseBuffer(4);
           noiseSrc.loop = true;
@@ -228,7 +234,6 @@
           }
           return this.ctx.state === 'running';
         } catch (err) {
-          console.warn('Audio start blocked by browser policy until user clicks:', err);
           return false;
         }
       }
@@ -360,12 +365,10 @@
           triggerDrop();
           this.levelTimer = setInterval(triggerDrop, 1100);
         } else if (levelId === 'level-!' || levelId === 'level-run') {
-          // Панический пульс 136 BPM + двухтональная сирена
           let step = 0;
           const triggerPanicCycle = () => {
             if (!this.isActuallyPlaying()) return;
             const t = this.ctx.currentTime;
-            // Саб-басовый удар сердца
             const kick = this.ctx.createOscillator();
             const kGain = this.ctx.createGain();
             kick.type = 'sine';
@@ -378,7 +381,6 @@
             kick.start(t);
             kick.stop(t + 0.26);
 
-            // Нарастающая тревожная сирена
             if (step % 2 === 0) {
               const siren = this.ctx.createOscillator();
               const sGain = this.ctx.createGain();
@@ -441,7 +443,6 @@
           beat();
           this.levelTimer = setInterval(beat, 1500);
         } else if (levelId === 'level-10') {
-          // Степной ветер в пшеничных полях
           const noise = this.ctx.createBufferSource();
           noise.buffer = this.createWhiteNoiseBuffer(4);
           noise.loop = true;
@@ -461,7 +462,6 @@
           lfo.start();
           this.levelNodes.push(noise, bp, lfo, lfoGain);
         } else if (levelId === 'level-3999') {
-          // Тёплый ретро-аккорд аркадного зала
           [261.63, 329.63, 392.00, 493.88].forEach(freq => {
             const osc = this.ctx.createOscillator();
             const g = this.ctx.createGain();
@@ -474,7 +474,6 @@
             this.levelNodes.push(osc, g);
           });
         } else {
-          // Глубокий низкочастотный гул для пещер, отеля и тёмных зон
           const sub = this.ctx.createOscillator();
           sub.type = 'sine';
           sub.frequency.value = 46;
@@ -489,6 +488,74 @@
     }
 
     const soundEngine = new AmbientEngine();
+
+    // ============================================================================
+    // CUSTOM M.E.G. BACKROOMS LOGO COMPONENT (SUPPORTS images/logo.png + SVG EMBLEM)
+    // ============================================================================
+    function BackroomsLogo({ size = 'lg' }) {
+      const [customLogoOk, setCustomLogoOk] = useState(true);
+      const dims = size === 'sm' ? 'w-9 h-9' : 'w-20 h-20 sm:w-24 sm:h-24';
+
+      return (
+        <div className={`relative ${dims} shrink-0 flex items-center justify-center select-none group`}>
+          {customLogoOk ? (
+            <img
+              src="images/logo.png"
+              alt="M.E.G. Backrooms Crest"
+              onError={() => setCustomLogoOk(false)}
+              className="w-full h-full object-contain drop-shadow-[0_0_12px_rgba(245,190,11,0.5)]"
+            />
+          ) : (
+            <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-[0_0_14px_rgba(245,190,11,0.4)]">
+              {/* Outer Rotating Radar Ring */}
+              <circle
+                cx="60"
+                cy="60"
+                r="55"
+                fill="none"
+                stroke="#f5be0b"
+                strokeWidth="1.5"
+                strokeDasharray="10 6 2 6"
+                strokeOpacity="0.55"
+                className="spin-slow"
+              />
+              {/* Hexagonal Tactical Shield */}
+              <polygon
+                points="60,8 106,34 106,86 60,112 14,86 14,34"
+                fill="#0b0c10"
+                stroke="#f5be0b"
+                strokeWidth="3"
+              />
+              <polygon
+                points="60,14 100,37 100,83 60,106 20,83 20,37"
+                fill="none"
+                stroke="#f5be0b"
+                strokeWidth="1"
+                strokeOpacity="0.35"
+              />
+              {/* Non-Euclidean Recursive Backrooms Corridors */}
+              <rect x="33" y="29" width="54" height="62" fill="none" stroke="#f5be0b" strokeWidth="2.2" />
+              <rect x="42" y="38" width="36" height="44" fill="none" stroke="#f5be0b" strokeWidth="1.8" strokeOpacity="0.8" />
+              <rect x="50" y="46" width="20" height="28" fill="#f5be0b" fillOpacity="0.18" stroke="#f5be0b" strokeWidth="1.5" />
+              {/* Perspective Diagonal Beams */}
+              <line x1="33" y1="29" x2="50" y2="46" stroke="#f5be0b" strokeWidth="1.5" strokeOpacity="0.7" />
+              <line x1="87" y1="29" x2="70" y2="46" stroke="#f5be0b" strokeWidth="1.5" strokeOpacity="0.7" />
+              <line x1="33" y1="91" x2="50" y2="74" stroke="#f5be0b" strokeWidth="1.5" strokeOpacity="0.7" />
+              <line x1="87" y1="91" x2="70" y2="74" stroke="#f5be0b" strokeWidth="1.5" strokeOpacity="0.7" />
+              {/* Center glowing portal core */}
+              <rect x="56" y="54" width="8" height="14" fill="#f5be0b" />
+              {/* M.E.G. Top & Bottom Stamps */}
+              <text x="60" y="24" textAnchor="middle" fill="#f5be0b" fontSize="7.5" fontFamily="monospace" fontWeight="bold" letterSpacing="1.5">
+                M.E.G.
+              </text>
+              <text x="60" y="102" textAnchor="middle" fill="#f5be0b" fontSize="6.5" fontFamily="monospace" letterSpacing="1">
+                ARCHIVE
+              </text>
+            </svg>
+          )}
+        </div>
+      );
+    }
 
     // ============================================================================
     // SVG TERMINAL PLACEHOLDER & ARCHIVE IMAGE COMPONENT
@@ -507,7 +574,7 @@
         <text x="400" y="260" text-anchor="middle" fill="#9ca3af" font-family="monospace" font-size="17">${subtitle}</text>
         <text x="400" y="310" text-anchor="middle" fill="#52525b" font-family="monospace" font-size="13">M.E.G. VISUAL ARCHIVE // PLACE FILE IN /images/</text>
       </svg>`;
-      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+      return `data:image+xml;utf8,${encodeURIComponent(svg)}`;
     }
 
     function ArchiveImage({ src, fallbackCode, fallbackTitle, accent = '#f5be0b', className = '', objectPosition = 'center center', fitMode = 'cover' }) {
@@ -549,7 +616,7 @@
     }
 
     // ============================================================================
-    // COMPLETE BILINGUAL DATABASE (14 LEVELS, 10 ENTITIES, 4 OBJECTS, 4 LOGS)
+    // COMPLETE BILINGUAL DATABASE (14 LEVELS, 10 ENTITIES, 4 OBJECTS, 4 LOGS, SURVEY)
     // ============================================================================
     const HERO_BG_URL = 'images/hero-bg.jpg';
 
@@ -741,7 +808,7 @@
         en: {
           name: 'Level 10 — "The Bumper Crop"',
           classInfo: 'Class 1 // Safe, Agricultural Expanse, Stable Resources',
-          shortDesc: 'Endless overcast wheat fields separated by wooden fences, dirt roads, and oldwooden barns.',
+          shortDesc: 'Endless overcast wheat fields separated by wooden fences, dirt roads, and old wooden barns.',
           description: 'Level 10 is an infinite expanse of golden wheat and barley fields beneath a permanently overcast, grey sky. Cool wind blows continuously across the plains, and rain falls lightly every few hours. Old wooden barns and silos scattered along dirt roads contain safe food rations, Almond Water barrels, and pathways back to Level 1 and Level 4.'
         },
         ru: {
@@ -762,7 +829,7 @@
         en: {
           name: 'Level 37 — "The Poolrooms"',
           classInfo: 'Class 1 // Tranquil, Acoustic Echo, Bio-Water Warning',
-          shortDesc: 'Surreal white ceramic chambers flooded with lukewarm turquoise water andImpossible skylight shafts.',
+          shortDesc: 'Surreal white ceramic chambers flooded with lukewarm turquoise water and impossible skylight shafts.',
           description: 'Commonly known as The Poolrooms, Level 37 is a vast complex of pristine white porcelain tiles, spiral staircases, and pillars half-submerged in lukewarm crystal-clear water. Bright shafts of sunlight pour from unreachable openings above, creating a deeply calming atmosphere. Caution: Avoid dark, unlit underwater grates infected with the Hydrolitis Plague.'
         },
         ru: {
@@ -1233,9 +1300,51 @@
       }
     ];
 
+    const SURVEY_QUESTIONS = [
+      {
+        id: 'q1',
+        en: '1. You hear a familiar voice calling your name from an unlit corridor. Your action?',
+        ru: '1. Из тёмного коридора знакомый голос зовёт вас по имени. Ваши действия?',
+        options: [
+          { score: 25, en: 'Ignore completely, mute footsteps, move away', ru: 'Хранить молчание и бесшумно уйти прочь' },
+          { score: 5,  en: 'Shine flashlight toward the voice', ru: 'Посветить фонариком в сторону звука' },
+          { score: -20, en: 'Call back to verify who it is', ru: 'Окликнуть в ответ, чтобы проверить' }
+        ]
+      },
+      {
+        id: 'q2',
+        en: '2. You find an unlabeled bottle of liquid on the floor. How do you verify it?',
+        ru: '2. Вы нашли на полу флягу без этикетки. Как проверите содержимое?',
+        options: [
+          { score: 25, en: 'Check clear color & vanilla-almond scent before sipping', ru: 'Просветить фонарём (прозрачная, запах ванили/миндаля)' },
+          { score: -25, en: 'Drink immediately if it has a reddish tint', ru: 'Выпить сразу, даже если оттенок красноватый' },
+          { score: 10, en: 'Leave it untouched and keep walking', ru: 'Не трогать и идти дальше' }
+        ]
+      },
+      {
+        id: 'q3',
+        en: '3. Two glowing white eyes and a wide grin appear in the dark ahead. Protocol?',
+        ru: '3. В темноте впереди зажглись белые глаза и широкая улыбка (Smiler). Протокол?',
+        options: [
+          { score: 25, en: 'Turn off flashlight, hold eye contact, back away slowly', ru: 'Выключить фонарь, держать взгляд и медленно пятиться' },
+          { score: -15, en: 'Turn around and sprint as fast as possible', ru: 'Развернуться спиной и бежать изо всех сил' },
+          { score: -10, en: 'Point high-lumen beam directly at its teeth', ru: 'Направить яркий луч фонаря прямо в глаза' }
+        ]
+      },
+      {
+        id: 'q4',
+        en: '4. You see a floating red balloon and a wall message: "PARTY THIS WAY =)".',
+        ru: '4. Вы видите красный воздушный шарик и надпись на стене «ВЕЧЕРИНКА ТУТ =)».',
+        options: [
+          { score: 25, en: 'Seal the doorway and evacuate sector immediately', ru: 'Заблокировать проход и немедленно покинуть сектор' },
+          { score: -30, en: 'Follow the confetti to find food and Cake =)', ru: 'Пойти по конфетти за тортом и помощью =)' }
+        ]
+      }
+    ];
+
     const UI_TEXT = {
       en: {
-        terminalVer: 'M.E.G. ARCHIVE TERMINAL v4.3',
+        terminalVer: 'M.E.G. ARCHIVE TERMINAL v5.0',
         heroSub: 'Survive. Document. Archive.',
         heroDesc: 'CENTRALIZED NON-EUCLIDEAN DATABASE OF DOCUMENTED SECTORS, BIOLOGICAL ENTITIES, ANOMALOUS OBJECTS, AND FIELD INCIDENT LOGS.',
         searchPlaceholder: 'SEARCH SECTOR, CODE, OR KEYWORD (e.g. Level !, 3999, Pool)...',
@@ -1244,6 +1353,9 @@
         entitiesTitle: 'DOCUMENTED BIOLOGICAL ENTITIES',
         objectsTitle: 'ANOMALOUS OBJECTS & SUPPLIES',
         logsTitle: 'CLASSIFIED M.E.G. INCIDENT LOGS',
+        surveyTitle: 'M.E.G. WANDERER SURVIVAL APTITUDE TEST',
+        surveySub: 'Answer 4 tactical field scenarios to calculate your Backrooms survival index:',
+        surveyScoreLabel: 'CALCULATED SURVIVAL INDEX',
         decryptAll: '[ 🔓 DECRYPT ALL LOGS ]',
         encryptAll: '[ 🔒 REDACT LOGS ]',
         survivalRate: 'SURVIVAL PROBABILITY',
@@ -1267,7 +1379,7 @@
         partyBanner: 'COME TO THE PARTY =) WE HAVE CAKE AND ALMOND WATER =) DO NOT CLOSE THE TERMINAL =) LEVEL FUN IS SAFE =) '
       },
       ru: {
-        terminalVer: 'АРХИВНЫЙ ТЕРМИНАЛ Б.И.Г. v4.3',
+        terminalVer: 'АРХИВНЫЙ ТЕРМИНАЛ Б.И.Г. v5.0',
         heroSub: 'Выживай. Документируй. Архив.',
         heroDesc: 'ЦЕНТРАЛИЗОВАННАЯ БАЗА ДАННЫХ ИССЛЕДОВАННЫХ УРОВНЕЙ ЗАКУЛИСЬЯ, БИОЛОГИЧЕСКИХ СУЩНОСТЕЙ, ПРЕДМЕТОВ И ЗАСЕКРЕЧЕННЫХ ОТЧЁТОВ Б.И.Г.',
         searchPlaceholder: 'ПОИСК УРОВНЯ, КОДА ИЛИ ОПИСАНИЯ (напр. !, 3999, Отель)...',
@@ -1276,6 +1388,9 @@
         entitiesTitle: 'РЕЕСТР ОБНАРУЖЕННЫХ СУЩНОСТЕЙ',
         objectsTitle: 'ПРЕДМЕТЫ И ОБЪЕКТЫ ЗАКУЛИСЬЯ',
         logsTitle: 'ЗАСЕКРЕЧЕННЫЕ ПОЛЕВЫЕ РАПОРТЫ Б.И.Г.',
+        surveyTitle: 'ТАКТИЧЕСКИЙ ТЕСТ Б.И.Г. НА ВЫЖИВАЕМОСТЬ В ЗАКУЛИСЬЕ',
+        surveySub: 'Ответьте на 4 полевых сценария, чтобы терминал рассчитал ваш шанс выжить:',
+        surveyScoreLabel: 'РАСЧЁТНЫЙ ИНДЕКС ВЫЖИВАНИЯ',
         decryptAll: '[ 🔓 РАСШИФРОВАТЬ ВСЁ ]',
         encryptAll: '[ 🔒 ЗАСЕКРЕТИТЬ ДАННЫЕ ]',
         survivalRate: 'ШАНС НА ВЫЖИВАНИЕ',
@@ -1341,21 +1456,19 @@
       const [selectedDanger, setSelectedDanger] = useState('ALL');
       const [searchQuery, setSearchQuery] = useState('');
 
-      // Храним только ID, чтобы при переключении языка модалка мгновенно переводилась
       const [activeLevelId, setActiveLevelId] = useState(null);
       const [activeEntityId, setActiveEntityId] = useState(null);
       const [activeObjectId, setActiveObjectId] = useState(null);
       const [entityFullFrame, setEntityFullFrame] = useState(false);
 
-      // Аудио-состояние: preference (желание пользователя) + ready (разблокировал ли браузер AudioContext)
       const [audioEnabled, setAudioEnabled] = useState(() => localStorage.getItem('backrooms_audio') === 'true');
       const [audioUnlocked, setAudioUnlocked] = useState(false);
 
-      // Рассудок, скачки напряжения и взлом Тусовщиками
       const [sanity, setSanity] = useState(100);
       const [isBrownout, setIsBrownout] = useState(false);
       const [partyHijacked, setPartyHijacked] = useState(false);
       const [revealedRedactions, setRevealedRedactions] = useState({});
+      const [surveyAnswers, setSurveyAnswers] = useState({});
       const [clockStr, setClockStr] = useState('');
 
       const t = UI_TEXT[lang];
@@ -1365,7 +1478,6 @@
       const activeEntity = useMemo(() => currentData.entities.find(e => e.id === activeEntityId) || null, [currentData, activeEntityId]);
       const activeObject = useMemo(() => currentData.objects.find(o => o.id === activeObjectId) || null, [currentData, activeObjectId]);
 
-      // Точные локальные часы (без сдвига UTC)
       useEffect(() => {
         const updateClock = () => {
           const now = new Date();
@@ -1379,15 +1491,13 @@
         return () => clearInterval(timer);
       }, []);
 
-      // Сохранение языка
       const toggleLang = (newLang) => {
         setLang(newLang);
         localStorage.setItem('backrooms_lang', newLang);
         soundEngine.triggerUiBeep(960, 0.05);
       };
 
-      // ИСПРАВЛЕНИЕ БАГА СО ЗВУКОМ ПРИ ЗАХОДЕ НА САЙТ:
-      // Если в localStorage звук был ВКЛ, слушаем первый же клик/клавишу на сайте и сразу будим AudioContext
+      // Auto-wake audio on first click if audioEnabled was saved in localStorage
       useEffect(() => {
         if (!audioEnabled) {
           soundEngine.stop();
@@ -1397,9 +1507,7 @@
 
         let cancelled = false;
         soundEngine.start().then((playing) => {
-          if (!cancelled && playing) {
-            setAudioUnlocked(true);
-          }
+          if (!cancelled && playing) setAudioUnlocked(true);
         });
 
         const wakeUpOnFirstInteraction = async () => {
@@ -1407,9 +1515,7 @@
           const ok = await soundEngine.start();
           if (ok) {
             setAudioUnlocked(true);
-            if (activeLevelId) {
-              soundEngine.playLevelAmbient(activeLevelId);
-            }
+            if (activeLevelId) soundEngine.playLevelAmbient(activeLevelId);
             window.removeEventListener('pointerdown', wakeUpOnFirstInteraction);
             window.removeEventListener('keydown', wakeUpOnFirstInteraction);
           }
@@ -1424,10 +1530,8 @@
         };
       }, [audioEnabled, activeLevelId]);
 
-      // Кнопка переключения звука: если звук был в STANDBY (заблокирован браузером), первый клик его ВКЛЮЧАЕТ, а не выключает!
       const handleAudioButtonClick = async () => {
         if (audioEnabled && !soundEngine.isActuallyPlaying()) {
-          // Звук числился включённым, но ждал первого клика — будим его сразу!
           const ok = await soundEngine.start();
           setAudioUnlocked(ok);
           if (activeLevelId) soundEngine.playLevelAmbient(activeLevelId);
@@ -1447,7 +1551,6 @@
         }
       };
 
-      // Уникальный звук при открытии/закрытии модалки уровня
       useEffect(() => {
         if (activeLevelId) {
           soundEngine.playLevelAmbient(activeLevelId);
@@ -1456,7 +1559,6 @@
         }
       }, [activeLevelId]);
 
-      // Эффект взлома Тусовщиками на Level Fun через 3 секунды
       useEffect(() => {
         setPartyHijacked(false);
         if (activeLevelId === 'level-fun') {
@@ -1468,7 +1570,6 @@
         }
       }, [activeLevelId]);
 
-      // Динамика рассудка (Sanity) в зависимости от открытого сектора
       useEffect(() => {
         if (!activeLevel) return;
         if (activeLevel.id === 'level-3999') {
@@ -1485,7 +1586,6 @@
         return () => clearInterval(timer);
       }, [activeLevel]);
 
-      // Периодическое мерцание ламп (Power Brownout)
       const triggerBrownout = useCallback(() => {
         setIsBrownout(true);
         soundEngine.triggerBrownoutSound();
@@ -1499,7 +1599,6 @@
         return () => clearInterval(timer);
       }, [triggerBrownout]);
 
-      // Каскадное закрытие модалок по клавише ESC (только верхнее окно!)
       useEffect(() => {
         const handleKeyDown = (e) => {
           if (e.key === 'Escape') {
@@ -1516,7 +1615,6 @@
         return () => window.removeEventListener('keydown', handleKeyDown);
       }, [activeEntityId, activeObjectId, activeLevelId]);
 
-      // Случайный уровень
       const openRandomLevel = () => {
         const list = currentData.levels;
         if (!list.length) return;
@@ -1531,7 +1629,6 @@
         soundEngine.triggerUiBeep(delta > 0 ? 1046 : 220, 0.12);
       };
 
-      // Фильтрация уровней (поиск работает по обоим языкам и спецсимволам вроде "!")
       const filteredLevels = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         return currentData.levels.filter(lvl => {
@@ -1570,9 +1667,34 @@
         }
       };
 
+      const surveyScore = useMemo(() => {
+        const raw = Object.values(surveyAnswers).reduce((acc, val) => acc + val, 0);
+        return Math.max(0, Math.min(100, raw));
+      }, [surveyAnswers]);
+
+      const surveyVerdict = useMemo(() => {
+        if (Object.keys(surveyAnswers).length < SURVEY_QUESTIONS.length) {
+          return lang === 'ru'
+            ? 'ОЖИДАНИЕ ОТВЕТОВ НА ВСЕ 4 ПОЛЕВЫХ СЦЕНАРИЯ...'
+            : 'AWAITING RESPONSES TO ALL 4 FIELD SCENARIOS...';
+        }
+        if (surveyScore >= 85) {
+          return lang === 'ru'
+            ? 'РАНГ: СТАРШИЙ ОПЕРАТИВНИК Б.И.Г. // Вы отлично знаете протоколы и выживете даже на Уровне 5 и 9.'
+            : 'RANK: SENIOR M.E.G. OPERATIVE // Exceptional adherence to survival directives.';
+        }
+        if (surveyScore >= 45) {
+          return lang === 'ru'
+            ? 'РАНГ: ОСТОРОЖНЫЙ СТРАННИК // Неплохие шансы на Уровнях 0–4, но избегайте тёмных зон.'
+            : 'RANK: CAUTIOUS WANDERER // Viable in Class 1 sectors; avoid Level 6 and Level 8.';
+        }
+        return lang === 'ru'
+          ? 'РАНГ: КРИТИЧЕСКИЙ РИСК ГИБЕЛИ // Ваши действия привлекут Улыбающихся или Тусовщиков в первые 10 минут.'
+          : 'RANK: CRITICAL CASUALTY RISK // High probability of entity ambush within 10 minutes.';
+      }, [surveyAnswers, surveyScore, lang]);
+
       return (
         <div className={`min-h-screen flex flex-col ${isBrownout ? 'brownout-active' : ''}`}>
-          {/* Предупреждающая красная виньетка при низком рассудке */}
           {sanity < 40 && (
             <div
               className="fixed inset-0 pointer-events-none z-40 transition-opacity duration-700"
@@ -1588,9 +1710,10 @@
           {/* ================================================================== */}
           <header className="sticky top-0 z-30 bg-term-bg/95 backdrop-blur-md border-b border-term-border px-4 py-2.5">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-              {/* Left Status & Sanity */}
+              {/* Left Logo + Status + Sanity */}
               <div className="flex flex-wrap items-center gap-3 text-xs">
-                <div className="flex items-center gap-2 font-bold text-term-amber tracking-wider">
+                <div className="flex items-center gap-2.5 font-bold text-term-amber tracking-wider">
+                  <BackroomsLogo size="sm" />
                   <span className="inline-block w-2 h-2 bg-term-amber animate-ping rounded-full"></span>
                   <span>{t.terminalVer}</span>
                 </div>
@@ -1615,7 +1738,6 @@
                   {sanity < 100 && (
                     <button
                       onClick={() => modifySanity(35)}
-                      title="Drink Almond Water (+35% Sanity)"
                       className="text-[10px] px-1.5 py-0.5 bg-term-amber/15 border border-term-amber/50 text-term-amber hover:bg-term-amber hover:text-black transition font-semibold"
                     >
                       💧 {t.restoreBtn}
@@ -1654,7 +1776,6 @@
                   [ 🔊 {audioEnabled ? (audioUnlocked ? t.audioOn : t.audioStandby) : t.audioOff} ]
                 </button>
 
-                {/* Language Switcher */}
                 <div className="flex items-center border border-term-amber/60 bg-term-panel overflow-hidden">
                   <button
                     onClick={() => toggleLang('en')}
@@ -1678,7 +1799,7 @@
           </header>
 
           {/* ================================================================== */}
-          {/* HERO SECTION                                                       */}
+          {/* HERO SECTION WITH M.E.G. BACKROOMS CREST LOGO                      */}
           {/* ================================================================== */}
           <section className="relative border-b border-term-border overflow-hidden">
             <div className="absolute inset-0 z-0">
@@ -1691,19 +1812,24 @@
               <div className="absolute inset-0 bg-gradient-to-b from-term-bg/70 via-term-bg/85 to-term-bg" />
             </div>
 
-            <div className="relative z-10 max-w-7xl mx-auto px-4 py-14 sm:py-20">
-              <div className="inline-flex items-center gap-2 px-3 py-1 mb-4 border border-term-amber/40 bg-term-amber/10 text-term-amber text-xs tracking-widest uppercase">
-                <span>MAJOR EXPLORER GROUP // CLEARANCE LEVEL 4</span>
+            <div className="relative z-10 max-w-7xl mx-auto px-4 py-12 sm:py-18">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                <BackroomsLogo size="lg" />
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 mb-3 border border-term-amber/40 bg-term-amber/10 text-term-amber text-xs tracking-widest uppercase">
+                    <span>MAJOR EXPLORER GROUP // CLEARANCE LEVEL 4</span>
+                  </div>
+                  <h1 className="font-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white glow-amber uppercase">
+                    THE BACKROOMS ARCHIVE
+                  </h1>
+                  <p className="mt-1.5 text-lg sm:text-2xl text-term-amber font-semibold tracking-widest uppercase">
+                    {t.heroSub}
+                  </p>
+                  <p className="mt-3 max-w-3xl text-xs sm:text-sm text-neutral-400 leading-relaxed">
+                    {t.heroDesc}
+                  </p>
+                </div>
               </div>
-              <h1 className="font-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white glow-amber uppercase">
-                THE BACKROOMS ARCHIVE
-              </h1>
-              <p className="mt-2 text-lg sm:text-2xl text-term-amber font-semibold tracking-widest uppercase">
-                {t.heroSub}
-              </p>
-              <p className="mt-4 max-w-3xl text-xs sm:text-sm text-neutral-400 leading-relaxed">
-                {t.heroDesc}
-              </p>
             </div>
           </section>
 
@@ -1744,7 +1870,6 @@
                   })}
                 </div>
 
-                {/* Search Box */}
                 <div className="relative w-full md:w-80">
                   <input
                     type="text"
@@ -1952,7 +2077,6 @@
                                 ? 'bg-term-amber/20 text-term-amber border border-term-amber/50'
                                 : 'bg-neutral-900 text-neutral-900 hover:text-term-amber border border-neutral-700 select-none'
                             }`}
-                            title="Click to decrypt classified fragment"
                           >
                             {isOpen ? seg.redacted : '[REDACTED // CLICK]'}
                           </button>
@@ -1961,6 +2085,60 @@
                     </p>
                   </div>
                 ))}
+              </div>
+            </section>
+
+            {/* ================================================================ */}
+            {/* M.E.G. WANDERER SURVIVAL APTITUDE SURVEY                         */}
+            {/* ================================================================ */}
+            <section className="space-y-4">
+              <div className="border-b border-term-border pb-2">
+                <h2 className="text-sm sm:text-base font-bold text-term-amber tracking-wider uppercase">
+                  // {t.surveyTitle}
+                </h2>
+                <p className="text-xs text-neutral-400 mt-1">{t.surveySub}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {SURVEY_QUESTIONS.map(q => (
+                  <div key={q.id} className="bg-term-panel border border-term-border p-4 space-y-3">
+                    <div className="text-xs font-bold text-white">{q[lang]}</div>
+                    <div className="space-y-1.5">
+                      {q.options.map((opt, idx) => {
+                        const selected = surveyAnswers[q.id] === opt.score;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              soundEngine.triggerUiBeep(opt.score > 0 ? 880 : 300, 0.06);
+                              setSurveyAnswers(prev => ({ ...prev, [q.id]: opt.score }));
+                            }}
+                            className={`w-full text-left px-3 py-2 text-xs border transition ${
+                              selected
+                                ? 'border-term-amber bg-term-amber/20 text-term-amber font-bold'
+                                : 'border-term-border bg-term-card text-neutral-300 hover:border-neutral-500'
+                            }`}
+                          >
+                            {selected ? '▶ ' : '• '} {opt[lang]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-term-card border border-term-amber/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="text-xs text-neutral-400 uppercase">{t.surveyScoreLabel}: <span className="text-term-amber font-bold text-sm">{surveyScore}%</span></div>
+                  <div className="text-xs sm:text-sm font-bold text-white">{surveyVerdict}</div>
+                </div>
+                <button
+                  onClick={() => { setSurveyAnswers({}); soundEngine.triggerUiBeep(520, 0.06); }}
+                  className="px-3 py-1.5 text-xs font-bold border border-term-border text-neutral-400 hover:border-term-amber hover:text-term-amber shrink-0"
+                >
+                  [ RESET TEST ]
+                </button>
               </div>
             </section>
           </main>
@@ -1981,7 +2159,6 @@
                     : 'border-term-amber/80 shadow-2xl'
                 }`}
               >
-                {/* Partygoer Hijack Marquee Banner on Level Fun */}
                 {partyHijacked && (
                   <div className="bg-red-600 text-yellow-200 text-xs font-extrabold py-1 overflow-hidden border-b border-yellow-400">
                     <div className="marquee-track whitespace-nowrap">
@@ -1991,7 +2168,6 @@
                   </div>
                 )}
 
-                {/* Modal Header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-term-bg border-b border-term-border">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold px-2 py-0.5 bg-term-amber text-black">
@@ -2016,7 +2192,6 @@
                   </div>
                 </div>
 
-                {/* Modal Image */}
                 <div className="relative h-60 sm:h-80 bg-black border-b border-term-border">
                   <ArchiveImage
                     src={activeLevel.image}
@@ -2036,9 +2211,7 @@
                   </div>
                 </div>
 
-                {/* Modal Body */}
                 <div className="p-5 space-y-5 max-h-[65vh] overflow-y-auto">
-                  {/* Survival Rate Bar */}
                   <div>
                     <div className="flex justify-between text-xs mb-1">
                       <span className="text-neutral-400 font-semibold">{t.survivalRate}</span>
@@ -2057,12 +2230,10 @@
                     </div>
                   </div>
 
-                  {/* Full Description */}
                   <p className="text-xs sm:text-sm text-neutral-200 leading-relaxed whitespace-pre-line">
                     {activeLevel.description}
                   </p>
 
-                  {/* Entities on this level */}
                   <div className="space-y-2 pt-2 border-t border-term-border">
                     <div className="text-xs font-bold text-term-amber uppercase">{t.knownEntities}:</div>
                     {activeLevel.entities.length === 0 ? (
@@ -2090,7 +2261,6 @@
                     )}
                   </div>
 
-                  {/* Interactive Level Exits (Travel Map) */}
                   {activeLevel.exits && activeLevel.exits.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-term-border">
                       <div className="text-xs font-bold text-cyan-400 uppercase">{t.knownExits}:</div>
@@ -2246,7 +2416,7 @@
 
           {/* FOOTER */}
           <footer className="border-t border-term-border bg-term-bg py-6 px-4 text-center text-xs text-neutral-500">
-            M.E.G. ARCHIVE TERMINAL // NON-EUCLIDEAN RESEARCH DIVISION // ALL SECTORS MONITORED
+            M.E.G. ARCHIVE TERMINAL v5.0 // NON-EUCLIDEAN RESEARCH DIVISION // ALL SECTORS MONITORED
           </footer>
         </div>
       );
